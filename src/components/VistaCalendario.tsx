@@ -1,8 +1,11 @@
 import {
   ArrowRight,
   Calendar as CalendarIcon,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  Filter,
   RotateCcw,
   Search,
   X,
@@ -213,6 +216,15 @@ function formatearFechaLargaEs(fechaIso: string): string {
   return `${diasSemana[dt.getUTCDay()]}, ${d} de ${NOMBRES_MESES_ES[m - 1].toLowerCase()} de ${y}`;
 }
 
+const ABREV_3_LETRAS: Record<CategoriaCalendario, string> = {
+  NACIMIENTO: 'Nac.',
+  BAJA: 'Baj.',
+  REGISTRO_PRINCIPADO: 'Reg.',
+  RECETA_SUPRESION: 'Rec.',
+  SALIDA_GUIA: 'Sal.',
+  REPRODUCCION: 'Rep.',
+};
+
 export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
   const hoy = hoyIso();
   const [anioInicial, mesInicial] = hoy.split('-').map(Number);
@@ -221,6 +233,7 @@ export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
   const [mesIndex, setMesIndex] = useState(mesInicial - 1); // 0..11
   const [diaSeleccionado, setDiaSeleccionado] = useState<string>(hoy);
   const [filtroCrotal, setFiltroCrotal] = useState('');
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [categoriasActivas, setCategoriasActivas] = useState<Set<CategoriaCalendario>>(
     () => new Set(CATEGORIAS_CALENDARIO.map((c) => c.id)),
   );
@@ -316,131 +329,131 @@ export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
     else if (ev.accionDestino === 'SALIDAS_DOCS') onIrA('salidas');
   };
 
-  const vacasSugeridas = useMemo(
-    () => estado.animales.filter((a) => a.estado === 'ACTIVO').slice(0, 6),
-    [estado.animales],
-  );
-
   return (
-    <div className="animate-fade-up space-y-5">
-      {/* Cabecera + Filtros (Crotal + Leyenda Interactiva de Colores) */}
-      <section className="card-surface space-y-4 rounded-2xl p-5">
+    <div className="animate-fade-up space-y-4">
+      {/* Cabecera compacta + Buscador + Botón desplegable "Filtros" */}
+      <section className="card-surface space-y-3 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900">
-              <CalendarIcon className="h-5 w-5" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900">
+              <CalendarIcon className="h-4.5 w-4.5" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-[#0f1f18]">
-                Calendario Mensual de Operaciones y Plazos
+              <h2 className="text-base font-extrabold text-[#0f1f18] sm:text-lg">
+                Agenda y Plazos
               </h2>
-              <p className="text-xs text-[#52655c]">
-                Filtra por vaca/crotal o pulsa en los colores para ver operaciones realizadas y
-                vencimientos futuros. Pulsa cualquier día para desplegar su detalle abajo.
+              <p className="text-[11px] text-[#52655c]">
+                Pulsa cualquier día para ver el detalle abajo.
               </p>
             </div>
           </div>
 
-          {/* Buscador por crotal o nombre */}
-          <div className="relative w-full sm:w-72">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#70857a]" />
-            <input
-              type="text"
-              value={filtroCrotal}
-              onChange={(e) => setFiltroCrotal(e.target.value)}
-              placeholder="Filtrar por crotal (#5115, Pinta...)"
-              className="w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] py-2 pl-9 pr-8 text-xs font-medium text-[#0f1f18] focus:border-emerald-600 focus:bg-white focus:outline-none"
-            />
-            {filtroCrotal && (
-              <button
-                type="button"
-                onClick={() => setFiltroCrotal('')}
-                aria-label="Limpiar filtro de crotal"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#70857a] hover:bg-[#edf1e9]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Atajos rápidos de crotal */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-bold text-[#52655c]">Vaca rápida:</span>
-          {vacasSugeridas.map((v) => {
-            const activo = filtroCrotal.trim() === v.numeroCorto;
-            return (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => setFiltroCrotal(activo ? '' : v.numeroCorto)}
-                className={`rounded-lg border px-2 py-0.5 font-mono text-[11px] font-bold transition ${
-                  activo
-                    ? 'border-amber-500 bg-amber-200 text-amber-950'
-                    : 'border-[#e1e7dc] bg-[#f8faf6] text-[#31453b] hover:border-amber-300 hover:bg-amber-50'
-                }`}
-              >
-                #{v.numeroCorto} {v.nombre ? v.nombre : ''}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Leyenda interactiva por colores */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#edf1e9] pt-3.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {CATEGORIAS_CALENDARIO.map((cat) => {
-              const activa = categoriasActivas.has(cat.id);
-              const count = conteoPorCategoriaMes[cat.id];
-              return (
+          {/* Buscador por crotal + Botón "Filtros" */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#70857a]" />
+              <input
+                type="text"
+                value={filtroCrotal}
+                onChange={(e) => setFiltroCrotal(e.target.value)}
+                placeholder="Crotal o nombre (#5115...)"
+                className="w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] py-2 pl-9 pr-8 text-xs font-medium text-[#0f1f18] focus:border-emerald-600 focus:bg-white focus:outline-none"
+              />
+              {filtroCrotal && (
                 <button
-                  key={cat.id}
                   type="button"
-                  onClick={() => toggleCategoria(cat.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
-                    activa
-                      ? 'border-[#cfd9c8] bg-white text-[#0f1f18] shadow-2xs'
-                      : 'border-transparent bg-[#f4f6f1] text-[#8fa197] opacity-60 hover:opacity-90'
-                  }`}
+                  onClick={() => setFiltroCrotal('')}
+                  aria-label="Limpiar filtro de crotal"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#70857a] hover:bg-[#edf1e9]"
                 >
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: cat.colorHex }}
-                  />
-                  <span>{cat.etiqueta}</span>
-                  {count > 0 && (
-                    <span className="rounded-full bg-[#edf1e9] px-1.5 font-mono text-[10px] font-extrabold text-[#2b4036]">
-                      {count}
-                    </span>
-                  )}
+                  <X className="h-3.5 w-3.5" />
                 </button>
-              );
-            })}
-            {!todasActivas && (
-              <button
-                type="button"
-                onClick={() =>
-                  setCategoriasActivas(new Set(CATEGORIAS_CALENDARIO.map((c) => c.id)))
-                }
-                className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Ver todas
-              </button>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="flex items-center gap-3 text-[11px] font-semibold text-[#52655c]">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-emerald-600" />
-              Realizado
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full border-2 border-amber-600 bg-white" />
-              Previsto / Plazo
-            </span>
+            <button
+              type="button"
+              onClick={() => setMostrarFiltros((v) => !v)}
+              aria-expanded={mostrarFiltros}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                mostrarFiltros || !todasActivas
+                  ? 'border-[#0f3d2e] bg-[#0f3d2e] text-white'
+                  : 'border-[#dce4d6] bg-white text-[#1f3329] hover:bg-[#f4f6f1]'
+              }`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filtros</span>
+              {!todasActivas && (
+                <span className="rounded-full bg-amber-300 px-1.5 font-mono text-[10px] font-extrabold text-[#0f3d2e]">
+                  {categoriasActivas.size}
+                </span>
+              )}
+              {mostrarFiltros ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Filtros desplegables por tipo de operación */}
+        {mostrarFiltros && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#edf1e9] pt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {CATEGORIAS_CALENDARIO.map((cat) => {
+                const activa = categoriasActivas.has(cat.id);
+                const count = conteoPorCategoriaMes[cat.id];
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => toggleCategoria(cat.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
+                      activa
+                        ? 'border-[#cfd9c8] bg-white text-[#0f1f18] shadow-2xs'
+                        : 'border-transparent bg-[#f4f6f1] text-[#8fa197] opacity-60 hover:opacity-90'
+                    }`}
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: cat.colorHex }}
+                    />
+                    <span>{cat.etiqueta}</span>
+                    {count > 0 && (
+                      <span className="rounded-full bg-[#edf1e9] px-1.5 font-mono text-[10px] font-extrabold text-[#2b4036]">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {!todasActivas && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCategoriasActivas(new Set(CATEGORIAS_CALENDARIO.map((c) => c.id)))
+                  }
+                  className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Ver todas
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 text-[11px] font-semibold text-[#52655c]">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-emerald-600" />
+                Realizado
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full border-2 border-amber-600 bg-white" />
+                Previsto / Plazo
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Cuadrícula Mensual */}
@@ -520,10 +533,13 @@ export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
                   esDelMesActual={celda.esDelMesActual}
                 />
                 {resumen && resumen.categoriasUnicas.length > 0 && (
-                  <span className="hidden max-w-full truncate text-[10px] font-bold text-[#4a5d54] sm:block">
+                  <span className="max-w-full truncate font-mono text-[8.5px] font-extrabold leading-tight tracking-tighter text-[#31453b] sm:text-[10px]">
                     {resumen.categoriasUnicas.length === 1
-                      ? MAPA_CATEGORIAS_CALENDARIO[resumen.categoriasUnicas[0]].etiquetaCorta
-                      : `${resumen.categoriasUnicas.length} tipos`}
+                      ? ABREV_3_LETRAS[resumen.categoriasUnicas[0]]
+                      : resumen.categoriasUnicas
+                          .slice(0, 2)
+                          .map((cat) => ABREV_3_LETRAS[cat].replace('.', ''))
+                          .join('·')}
                   </span>
                 )}
               </button>
