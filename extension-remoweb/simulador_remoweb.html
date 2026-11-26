@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulador Agroficina Virtual / RemoWeb — Prueba de Extensión GanaderIA</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+        max-width: 720px;
+        margin: 32px auto;
+        padding: 0 16px;
+      }
+      .banner {
+        background: #0c4a6e;
+        color: white;
+        padding: 18px 22px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+      }
+      .card {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      input, select {
+        padding: 9px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      button {
+        margin-top: 16px;
+        background: #0c4a6e;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="banner">
+      <h2>Simulador Local — Agroficina Virtual / RemoWeb (Asturias)</h2>
+      <p style="margin-top: 6px; font-size: 13px">
+        Abre la extensión <strong>GanaderIA · RemoWeb</strong> en tu navegador, pega el paquete JSON
+        exportado desde GanaderIA y pulsa <em>Rellenar en esta página</em> para comprobar el
+        autocompletado en 1 clic.
+      </p>
+    </div>
+
+    <form class="card" onsubmit="event.preventDefault(); alert('¡Simulación de envío completada!');">
+      <h3>Formulario de Comunicación de Nacimiento / Baja Bovino</h3>
+      <div class="grid">
+        <label for="codigoRega">
+          Código REGA Explotación
+          <input id="codigoRega" name="codigo_rega" type="text" placeholder="ES33..." />
+        </label>
+        <label for="crotalAnimal">
+          Crotal Oficial (DIB)
+          <input id="crotalAnimal" name="crotal_oficial" type="text" placeholder="ES0300..." />
+        </label>
+        <label for="crotalMadre">
+          Crotal de la Madre
+          <input id="crotalMadre" name="crotal_madre" type="text" placeholder="ES0300..." />
+        </label>
+        <label for="fechaEvento">
+          Fecha de Nacimiento / Baja
+          <input id="fechaEvento" name="fecha_evento" type="date" />
+        </label>
+        <label for="sexoAnimal">
+          Sexo del Animal
+          <select id="sexoAnimal" name="sexo">
+            <option value="">Seleccionar...</option>
+            <option value="H">Hembra</option>
+            <option value="M">Macho</option>
+          </select>
+        </label>
+        <label for="razaAnimal">
+          Raza
+          <input id="razaAnimal" name="raza" type="text" />
+        </label>
+        <label for="destinoSalida">
+          Destino (si es guía de salida)
+          <input id="destinoSalida" name="destino" type="text" />
+        </label>
+        <label for="motivoBaja">
+          Motivo / Observaciones
+          <input id="motivoBaja" name="motivo" type="text" />
+        </label>
+      </div>
+      <button type="submit">Revisar y Firmar con Certificado (Simulado)</button>
+    </form>
+  </body>
+</html>

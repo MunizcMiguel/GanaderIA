@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "GanaderIA — Autocompletado RemoWeb / Agroficina Asturias",
+  "version": "0.1.0",
+  "description": "Autorrellena en 1 clic los formularios de nacimientos, bajas y guías en Agroficina Virtual / RemoWeb con los datos validados en GanaderIA.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GanaderIA RemoWeb"
+  }
+}

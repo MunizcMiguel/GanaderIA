@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GanaderIA RemoWeb</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div>
+        <h1>Ganader<span>IA</span> · RemoWeb</h1>
+        <p id="subtitulo">Autocompletado 1-clic para Agroficina Virtual</p>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="row-between">
+          <strong>1. Cargar cola desde GanaderIA</strong>
+          <label class="btn-secondary small-btn">
+            Abrir JSON
+            <input id="fileInput" type="file" accept=".json" hidden />
+          </label>
+        </div>
+        <textarea
+          id="jsonInput"
+          rows="3"
+          placeholder='Pega aquí el paquete copiado con "Copiar para Extensión Chrome" desde GanaderIA...'
+        ></textarea>
+        <div class="row-between">
+          <button id="btnCargar" type="button" class="btn-primary">Cargar trámites</button>
+          <button id="btnLimpiar" type="button" class="btn-link">Vaciar cola</button>
+        </div>
+      </section>
+
+      <div id="estadoMsg" class="status hidden"></div>
+
+      <section id="listaSection" class="card hidden">
+        <div class="row-between">
+          <strong id="explotacionTitulo">Trámites pendientes</strong>
+          <span id="contador" class="badge">0</span>
+        </div>
+        <p class="hint">
+          Abre el formulario de Agroficina / RemoWeb con tu Cl@ve o Certificado y pulsa
+          <strong>Rellenar</strong>. Tú siempre revisas y firmas al final.
+        </p>
+        <div id="listaTramites" class="tramites"></div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

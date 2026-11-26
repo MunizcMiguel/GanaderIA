@@ -1,0 +1,1583 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GanaderIA — Presentación Interactiva con Voz en Off y Música</title>
+    <style>
+      :root {
+        --bg: #0b1411;
+        --panel: #111f1a;
+        --panel-border: rgba(167, 243, 208, 0.14);
+        --emerald: #10b981;
+        --emerald-dark: #065f46;
+        --amber: #fbbf24;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: radial-gradient(circle at top, #132a22 0%, #09110e 65%);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+
+      /* Top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 20px;
+        background: rgba(11, 20, 17, 0.9);
+        border-bottom: 1px solid var(--panel-border);
+        backdrop-filter: blur(8px);
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand-logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #10b981, #047857);
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        font-size: 16px;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      }
+
+      .brand h1 {
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .brand h1 span {
+        color: #6ee7b7;
+      }
+
+      .brand p {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .controls-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip-btn {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+      }
+
+      .chip-btn:hover {
+        background: rgba(16, 185, 129, 0.16);
+        border-color: rgba(110, 231, 183, 0.4);
+      }
+
+      .chip-btn.active {
+        background: rgba(16, 185, 129, 0.22);
+        border-color: #34d399;
+        color: #a7f3d0;
+      }
+
+      .chip-select {
+        background: #13221c;
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 12px;
+        max-width: 190px;
+      }
+
+      .vol-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 5px 10px;
+      }
+
+      .vol-wrap input[type='range'] {
+        width: 72px;
+        accent-color: var(--emerald);
+      }
+
+      /* Main stage */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 16px 20px 12px;
+        gap: 12px;
+      }
+
+      .stage-header {
+        width: 100%;
+        max-width: min(1120px, 102vh);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .slide-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(110, 231, 183, 0.35);
+        color: #a7f3d0;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .slide-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-top: 3px;
+      }
+
+      .slide-counter {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Viewport 16:10 matching 1440x900 screenshots exactly, always fits 100vh */
+      .stage-frame {
+        position: relative;
+        width: 100%;
+        max-width: min(1120px, 102vh);
+        aspect-ratio: 16 / 10;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #0d1714;
+        border: 1px solid rgba(167, 243, 208, 0.22);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+      }
+
+      .stage-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: opacity 0.38s ease, transform 0.5s ease;
+      }
+
+      .stage-img.fading {
+        opacity: 0.25;
+        transform: scale(1.012);
+      }
+
+      /* Cover Slide Overlay */
+      .cover-overlay {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 25% 20%, rgba(16, 185, 129, 0.32), transparent 55%),
+          linear-gradient(135deg, #06281c 0%, #0d3b2c 50%, #0f172a 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px;
+        z-index: 25;
+        transition: opacity 0.45s ease;
+      }
+
+      .cover-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .cover-pill {
+        background: rgba(251, 191, 36, 0.16);
+        border: 1px solid rgba(251, 191, 36, 0.45);
+        color: #fde68a;
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 18px;
+      }
+
+      .cover-overlay h2 {
+        font-size: clamp(32px, 4.5vw, 56px);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1.08;
+        max-width: 820px;
+      }
+
+      .cover-overlay h2 span {
+        color: #6ee7b7;
+      }
+
+      .cover-overlay p {
+        margin-top: 16px;
+        font-size: clamp(14px, 1.5vw, 18px);
+        color: #cbd5e1;
+        max-width: 720px;
+        line-height: 1.55;
+      }
+
+      .cover-features {
+        margin-top: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        max-width: 780px;
+      }
+
+      .cover-features span {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+
+      .btn-start-big {
+        margin-top: 30px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        color: #0f172a;
+        border: none;
+        border-radius: 16px;
+        padding: 16px 32px;
+        font-size: 17px;
+        font-weight: 900;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 14px 36px rgba(245, 158, 11, 0.4);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .btn-start-big:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 18px 44px rgba(245, 158, 11, 0.52);
+      }
+
+      /* Spotlight Callout Ring */
+      .spotlight-box {
+        position: absolute;
+        pointer-events: none;
+        border: 3px solid #fbbf24;
+        border-radius: 12px;
+        box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.22), 0 0 24px rgba(251, 191, 36, 0.45);
+        transform: translate(-50%, -50%);
+        transition: all 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+        opacity: 0;
+        z-index: 12;
+      }
+
+      .spotlight-box.visible {
+        opacity: 1;
+      }
+
+      .spotlight-box.danger {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.25), 0 0 24px rgba(239, 68, 68, 0.5);
+      }
+
+      /* Floating Callout Label */
+      .callout-tip {
+        position: absolute;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.94);
+        color: #fef3c7;
+        border: 1px solid rgba(251, 191, 36, 0.6);
+        padding: 7px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+        transform: translate(-50%, calc(-100% - 22px));
+        transition: all 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+        opacity: 0;
+        z-index: 16;
+      }
+
+      .callout-tip.visible {
+        opacity: 1;
+      }
+
+      /* Simulated Mouse Cursor */
+      .sim-cursor {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 34px;
+        height: 34px;
+        pointer-events: none;
+        z-index: 20;
+        transition: left 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+          top 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.14s ease,
+          opacity 0.3s ease;
+        filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.55));
+        opacity: 0;
+      }
+
+      .sim-cursor.visible {
+        opacity: 1;
+      }
+
+      .sim-cursor.clicking {
+        transform: scale(0.84);
+      }
+
+      /* Click Ripple */
+      .click-ripple {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 3px solid #fbbf24;
+        background: rgba(251, 191, 36, 0.35);
+        pointer-events: none;
+        transform: translate(-50%, -50%) scale(0.4);
+        animation: rippleAnim 0.72s ease-out forwards;
+        z-index: 19;
+      }
+
+      @keyframes rippleAnim {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(0.4);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(4.2);
+        }
+      }
+
+      /* Subtitles bar inside bottom of stage */
+      .subtitle-bar {
+        position: absolute;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        max-width: 88%;
+        background: rgba(9, 17, 14, 0.88);
+        border: 1px solid rgba(167, 243, 208, 0.3);
+        color: #f8fafc;
+        padding: 11px 20px;
+        border-radius: 14px;
+        font-size: clamp(13px, 1.35vw, 16px);
+        font-weight: 500;
+        line-height: 1.45;
+        text-align: center;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+        z-index: 18;
+        transition: opacity 0.25s ease;
+      }
+
+      .subtitle-bar.hidden {
+        opacity: 0;
+      }
+
+      .subtitle-bar .voice-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #10b981;
+        margin-right: 8px;
+        vertical-align: middle;
+        animation: pulseDot 1s infinite;
+      }
+
+      @keyframes pulseDot {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.45); opacity: 0.55; }
+      }
+
+      /* Progress bar */
+      .progress-track {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.12);
+        z-index: 22;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #10b981, #fbbf24);
+        transition: width 0.35s ease;
+      }
+
+      /* Bottom playback & chapter filmstrip */
+      .dock {
+        width: 100%;
+        max-width: min(1120px, 102vh);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .dock-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .play-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-play {
+        background: #10b981;
+        color: #052e16;
+        border: none;
+        border-radius: 12px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .btn-play:hover {
+        background: #34d399;
+      }
+
+      .btn-nav {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        padding: 8px 13px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn-nav:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .chapters {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .chap-btn {
+        flex: 0 0 auto;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        border-radius: 10px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+      }
+
+      .chap-btn:hover {
+        border-color: rgba(110, 231, 183, 0.45);
+        color: #fff;
+      }
+
+      .chap-btn.active {
+        background: rgba(16, 185, 129, 0.25);
+        border-color: #34d399;
+        color: #ecfdf5;
+      }
+
+      .eq-bars {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 12px;
+      }
+
+      .eq-bars i {
+        display: block;
+        width: 3px;
+        background: #34d399;
+        border-radius: 2px;
+        height: 4px;
+      }
+
+      .eq-bars.playing i:nth-child(1) { animation: eq 0.6s infinite alternate; }
+      .eq-bars.playing i:nth-child(2) { animation: eq 0.45s 0.15s infinite alternate; }
+      .eq-bars.playing i:nth-child(3) { animation: eq 0.7s 0.25s infinite alternate; }
+
+      @keyframes eq {
+        from { height: 3px; }
+        to { height: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">G</div>
+        <div>
+          <h1>Ganader<span>IA</span> · Tour Interactivo del Paquete</h1>
+          <p>Capturas reales HD · Simulación de clics · Voz en off sincronizada · Música instrumental</p>
+        </div>
+      </div>
+
+      <div class="controls-top">
+        <button id="btnMusic" class="chip-btn active" type="button">
+          <span id="eqBars" class="eq-bars"><i></i><i></i><i></i></span>
+          Música alegre: ON
+        </button>
+        <div class="vol-wrap" title="Volumen de música de fondo">
+          <span>Vol</span>
+          <input id="musicVol" type="range" min="0" max="100" value="38" />
+        </div>
+        <button id="btnVoice" class="chip-btn active" type="button">🎙️ Voz en off: ON</button>
+        <select id="voiceSelect" class="chip-select" title="Seleccionar voz en español"></select>
+        <select id="rateSelect" class="chip-select" style="width: 78px" title="Velocidad voz">
+          <option value="0.92">0.9x</option>
+          <option value="1.03" selected>1.0x</option>
+          <option value="1.15">1.15x</option>
+          <option value="1.25">1.25x</option>
+        </select>
+        <button id="btnExportScript" class="chip-btn" type="button">📄 Guión (.txt)</button>
+        <button id="btnFullscreen" class="chip-btn" type="button">⛶ Pantalla completa</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="stage-header">
+        <div>
+          <span id="slideTag" class="slide-tag">Introducción · Tour Completo</span>
+          <h2 id="slideTitle" class="slide-title">GanaderIA — Menos papeleo, cero multas en tu explotación</h2>
+        </div>
+        <div id="slideCounter" class="slide-counter">Escena 0 / 13</div>
+      </div>
+
+      <div id="stageFrame" class="stage-frame">
+        <img id="stageImg" class="stage-img" src="capturas/01_semaforo.png" alt="Captura GanaderIA" />
+
+        <!-- Portada inicial (desbloquea audio + voz en 1 clic) -->
+        <div id="coverOverlay" class="cover-overlay">
+          <div class="cover-pill">Principado de Asturias · Estándar SITRAN Extensible</div>
+          <h2>Descubre <span>GanaderIA</span> en acción</h2>
+          <p>
+            Recorrido guiado con <strong>capturas reales</strong>, simulación de movimientos de ratón y clics,
+            <strong>voz en off sincronizada</strong> y <strong>música instrumental alegre</strong> mostrando cómo
+            conectar tu robot de ordeño con Agroficina Virtual y gestionar crotales, recetas PRESVET y salidas sin errores.
+          </p>
+          <div class="cover-features">
+            <span>🚦 Semáforo 7d / 20d</span>
+            <span>🤖 Cuadre Lely &amp; DeLaval</span>
+            <span>🧩 Extensión 1-Clic RemoWeb</span>
+            <span>🎙️ Dictado en Cuadra</span>
+            <span>📷 OCR Recetas PRESVET y DIBs</span>
+            <span>🐄 Censo, Crotales y Reproducción</span>
+            <span>🛡️ Bloqueo Sanitario Matadero</span>
+          </div>
+          <button id="btnStartBig" class="btn-start-big" type="button">
+            ▶ Iniciar Presentación Guiada (Voz + Música)
+          </button>
+        </div>
+
+        <!-- Spotlight + Tooltip + Cursor simulado -->
+        <div id="spotlight" class="spotlight-box"></div>
+        <div id="calloutTip" class="callout-tip"></div>
+        <svg id="simCursor" class="sim-cursor" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path
+            d="M6 3L25 15.5L15.8 17.6L12.4 27L6 3Z"
+            fill="#ffffff"
+            stroke="#0f172a"
+            stroke-width="2.2"
+            stroke-linejoin="round"
+          />
+        </svg>
+
+        <!-- Subtítulos sincronizados -->
+        <div id="subtitleBar" class="subtitle-bar hidden">
+          <span class="voice-dot"></span><span id="subtitleText"></span>
+        </div>
+
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Controles inferiores y selector de capítulos -->
+      <section class="dock">
+        <div class="dock-row">
+          <div class="play-group">
+            <button id="btnPlayPause" class="btn-play" type="button">▶ Reproducir tour</button>
+            <button id="btnPrev" class="btn-nav" type="button">◀ Anterior</button>
+            <button id="btnNext" class="btn-nav" type="button">Siguiente ▶</button>
+            <button id="btnReplaySlide" class="btn-nav" type="button">↻ Repetir escena</button>
+          </div>
+          <div style="font-size: 11px; color: #94a3b8">
+            Atajos: <strong>Espacio</strong> reproducir/pausar · <strong>← / →</strong> cambiar escena ·
+            <strong>M</strong> música · <strong>F</strong> pantalla completa
+          </div>
+        </div>
+
+        <div id="chapters" class="chapters"></div>
+      </section>
+    </main>
+
+    <script>
+      // =========================================================================
+      // 1. GUIÓN SINCRONIZADO + COREOGRAFÍA EXACTA DE RATÓN Y CLICS (13 ESCENAS)
+      //    Coordenadas calibradas directamente del DOM real (viewport 1440x900)
+      // =========================================================================
+      const ESCENAS = [
+        {
+          id: 1,
+          corto: '1. Semáforo',
+          etiqueta: 'Quick Win #1 · Semáforo Legal',
+          titulo: 'Panel Principal: Semáforo de Plazos Legales y Seguridad Sanitaria',
+          imagen: 'capturas/01_semaforo.png',
+          pasos: [
+            {
+              x: 49.3, y: 27.1, w: 18, h: 11, click: false,
+              tip: 'Resumen de trámites pendientes en Agroficina',
+              texto: 'Bienvenido a GanaderIA. Nada más abrir la aplicación en tu ordenador o móvil, ves el estado real de tu ganadería, como Casa El Robledal en Cangas del Narcea, y cuántos trámites tienes pendientes de subir a Agroficina Virtual.'
+            },
+            {
+              x: 40.5, y: 51.8, w: 36, h: 7, click: false, danger: true,
+              tip: '¡Alerta roja! Queda 1 día del plazo legal de 7 días',
+              texto: 'El semáforo legal te protege de multas y penalizaciones de la PAC: aquí te avisa en rojo de que mañana vence el plazo de siete días para comunicar un nacimiento.'
+            },
+            {
+              x: 47.1, y: 60.1, w: 42, h: 7, click: false, danger: true,
+              tip: 'Control automático de supresión leche y carne',
+              texto: 'También vigila en tiempo real los periodos de supresión de antibióticos, avisando que la vaca cinco mil ciento quince no puede mezclar leche ni ir a matadero, y recuerda cuándo caduca el saneamiento.'
+            },
+            {
+              x: 66.5, y: 15.4, w: 12, h: 5.5, click: true,
+              tip: 'Clic en "Importar Robot"',
+              texto: 'Ahora hacemos clic en Importar Robot para conectar los datos del robot de ordeño con el Principado.'
+            }
+          ]
+        },
+        {
+          id: 2,
+          corto: '2. Robot 360°',
+          etiqueta: 'Quick Win #4 y #7 · Robot ↔ Principado',
+          titulo: 'Importador del Robot de Ordeño y Bandeja de Discrepancias ("Cuadre 360°")',
+          imagen: 'capturas/02_robot_cuadre.png',
+          pasos: [
+            {
+              x: 79.8, y: 13.3, w: 12, h: 5, click: true,
+              tip: 'Clic: importando exportación CSV de Lely Horizon',
+              texto: 'En la pestaña Robot y RemoWeb puedes subir archivos de Lely Horizon, DeLaval DelPro o Excel. Aquí pulsamos sobre el ejemplo real de Lely.'
+            },
+            {
+              x: 54.4, y: 25.8, w: 28, h: 4.5, click: false,
+              tip: 'Detección automática de formato ROBOT_LELY',
+              texto: 'GanaderIA detecta el formato automáticamente, lee los eventos y los cruza al instante con tu censo oficial para que no tengas que picar nada dos veces.'
+            },
+            {
+              x: 41.6, y: 37.4, w: 34, h: 9, click: false,
+              tip: 'Crotal libre sugerido automáticamente: ES030045120003',
+              texto: 'Encuentra tres discrepancias: dos partos del robot aún sin dar de alta en el Principado, asignándoles ya el siguiente crotal libre de tu cajón, y una baja de la vaca tres mil novecientos uno que seguía activa.'
+            },
+            {
+              x: 86.6, y: 34.8, w: 14, h: 4.5, click: true,
+              tip: 'Clic en "Añadir a Cola RemoWeb"',
+              texto: 'Con un solo clic en Añadir a Cola RemoWeb, el ternero queda preparado para subirlo a la web del Principado.'
+            }
+          ]
+        },
+        {
+          id: 3,
+          corto: '3. Cola RemoWeb',
+          etiqueta: 'Quick Win #7 · Cola Validada',
+          titulo: 'Cola de Trámites Listos para Agroficina Virtual / RemoWeb',
+          imagen: 'capturas/03_cola_remoweb.png',
+          pasos: [
+            {
+              x: 50.1, y: 79.9, w: 46, h: 8, click: true,
+              tip: 'Clic para copiar cada campo sin errores de tecleo',
+              texto: 'En la cola aparecen todos los trámites pendientes ordenados. Si prefieres ir campo por campo, cada dato tiene un botón para copiarlo en un clic sin equivocarte en los catorce dígitos del crotal.'
+            },
+            {
+              x: 69.6, y: 62.0, w: 15.5, h: 4.5, click: true,
+              tip: 'Clic en "Copiar para Extensión Chrome"',
+              texto: 'Y si quieres ir diez veces más rápido, hacemos clic en Copiar para Extensión Chrome y pasamos toda la cola directa a nuestra extensión de navegador.'
+            },
+            {
+              x: 86.1, y: 93.1, w: 19, h: 4.5, click: false,
+              tip: 'Confirmación con nº de justificante oficial',
+              texto: 'Cuando termines en el portal, marcas el trámite como confirmado y puedes guardar el número de justificante oficial.'
+            }
+          ]
+        },
+        {
+          id: 4,
+          corto: '4. Web Principado',
+          etiqueta: 'Pieza Estrella #11 · Antes',
+          titulo: 'Formulario de Agroficina Virtual / RemoWeb (Antes de Autocompletar)',
+          imagen: 'capturas/04_remoweb_antes.png',
+          pasos: [
+            {
+              x: 38.0, y: 36.7, w: 24, h: 5.5, click: false,
+              tip: 'El ganadero entra con su Cl@ve o Certificado Digital',
+              texto: 'Así se ve un formulario oficial de comunicación de nacimiento o baja en RemoWeb cuando entras con tu Clave o Certificado Digital.'
+            },
+            {
+              x: 62.0, y: 36.7, w: 24, h: 5.5, click: true,
+              tip: 'Normalmente habría que teclear 7 campos a mano por animal',
+              texto: 'Rellenar código REGA, crotal del ternero, crotal de la madre, fecha, sexo y raza uno por uno lleva tiempo y facilita los errores. Veamos qué ocurre al usar la extensión de GanaderIA.'
+            }
+          ]
+        },
+        {
+          id: 5,
+          corto: '5. Extensión 1-Clic',
+          etiqueta: 'Pieza Estrella #11 · Autocompletado',
+          titulo: 'Extensión Chrome / Edge: 7 Campos Rellenados en 1 Clic',
+          imagen: 'capturas/05_remoweb_rellenado.png',
+          pasos: [
+            {
+              x: 87.1, y: 11.7, w: 24, h: 20, click: true,
+              tip: 'Clic en "Rellenar en esta página" en la extensión',
+              texto: 'Al pulsar Rellenar en la extensión de Chrome o Edge, GanaderIA completa automáticamente los siete campos del formulario en menos de un segundo.'
+            },
+            {
+              x: 62.0, y: 36.7, w: 24, h: 5.5, click: false,
+              tip: 'Crotal oficial y madre resaltados en verde',
+              texto: 'Todos los campos rellenados se iluminan en verde para que puedas revisarlos de un vistazo, con el crotal del ternero y el de la madre exactos.'
+            },
+            {
+              x: 37.4, y: 67.0, w: 23, h: 5, click: true,
+              tip: 'El ganadero siempre revisa y firma al final',
+              texto: 'Tú siempre mantienes el control total: solo revisas que todo esté bien y pulsas Firmar con tu certificado. Cero tecleo repetitivo.'
+            }
+          ]
+        },
+        {
+          id: 6,
+          corto: '6. Dictado Voz',
+          etiqueta: 'Quick Win #8 · Voz en Cuadra',
+          titulo: 'Registro Rápido de Cuadra por Voz o Texto (Incluso en Asturiano)',
+          imagen: 'capturas/06_dictado_voz.png',
+          pasos: [
+            {
+              x: 39.8, y: 34.1, w: 13.5, h: 5, click: true,
+              tip: 'Clic en "Hablar por micrófono"',
+              texto: 'En la cuadra casi siempre tienes las manos ocupadas. Por eso GanaderIA incluye el registro rápido por voz en español.'
+            },
+            {
+              x: 46.4, y: 50.5, w: 18, h: 4, click: true,
+              tip: 'Dictado: "Hoy parió la 4521, ternera hembra frisona"',
+              texto: 'Basta con decir: Hoy parió la cuatro cinco dos uno, ternera hembra frisona. También entiende avisos de crotales caídos, bajas, inseminaciones e incluso palabras como xatu o xata.'
+            },
+            {
+              x: 44.0, y: 63.1, w: 32, h: 8, click: false,
+              tip: 'Resuelve madre #4521, sexo, raza y crotal libre',
+              texto: 'Al momento identifica a la vaca madre, la raza, el sexo y asigna el siguiente crotal disponible del stock.'
+            },
+            {
+              x: 60.7, y: 73.7, w: 12.5, h: 4.5, click: true,
+              tip: 'Clic en "Aplicar acción ahora"',
+              texto: 'Pulsas Aplicar acción ahora y queda registrado en el censo y en la cola del Principado.'
+            }
+          ]
+        },
+        {
+          id: 7,
+          corto: '7. OCR Receta',
+          etiqueta: 'Quick Win #9 · Escáner PRESVET',
+          titulo: 'Escáner OCR de Recetas Veterinarias PRESVET (100% Local)',
+          imagen: 'capturas/07_ocr_receta.png',
+          pasos: [
+            {
+              x: 59.0, y: 22.3, w: 9, h: 4.5, click: true,
+              tip: 'Hacer foto con el móvil o subir imagen',
+              texto: 'Cuando el veterinario deja una receta PRESVET, abres el escáner OCR y le haces una foto directamente desde tu navegador, de forma totalmente privada.'
+            },
+            {
+              x: 46.0, y: 27.7, w: 12, h: 3.5, click: true,
+              tip: 'Extracción inteligente del medicamento y vaca #4521',
+              texto: 'El extractor lee el texto, filtra el código REGA para no confundirlo nunca con el animal, identifica a la vaca Pinta y extrae el medicamento y el número oficial de receta.'
+            },
+            {
+              x: 39.4, y: 77.3, w: 22, h: 9, click: false,
+              tip: 'Convierte 96 horas → 4 días de leche y 14 días de carne',
+              texto: 'Incluso convierte automáticamente noventa y seis horas de espera en leche a cuatro días, y calcula la fecha exacta de fin de supresión en carne.'
+            },
+            {
+              x: 62.4, y: 85.3, w: 18, h: 4.5, click: true,
+              tip: 'Clic: activa alertas y bloquea salidas a matadero',
+              texto: 'Con un clic activas el bloqueo sanitario y archivas la receta en la carpeta de inspección.'
+            }
+          ]
+        },
+        {
+          id: 8,
+          corto: '8. OCR DIB',
+          etiqueta: 'Quick Win #9 · Escáner DIB',
+          titulo: 'Escáner OCR de Documentos de Identificación Bovina (DIB)',
+          imagen: 'capturas/08_ocr_dib.png',
+          pasos: [
+            {
+              x: 55.8, y: 32.3, w: 10, h: 3.5, click: true,
+              tip: 'Escaneo automático de DIB Bovino',
+              texto: 'El mismo escáner reconoce documentos de identificación bovina cuando compras una res o recibes su pasaporte.'
+            },
+            {
+              x: 39.4, y: 58.7, w: 22, h: 7.5, click: false,
+              tip: 'Extrae crotal, madre, fecha nacimiento y raza',
+              texto: 'Rellena automáticamente el crotal oficial, el de la madre, la fecha de nacimiento, el sexo y la raza Asturiana de los Valles.'
+            },
+            {
+              x: 62.3, y: 80.7, w: 18.5, h: 4.5, click: true,
+              tip: 'Clic para dar de alta en el Censo y archivar DIB',
+              texto: 'Así puedes dar de alta un animal nuevo o verificar que su DIB está impreso en cuestión de segundos.'
+            }
+          ]
+        },
+        {
+          id: 9,
+          corto: '9. Censo y Libro',
+          etiqueta: 'Quick Win #5 · Estándar SITRAN',
+          titulo: 'Censo Unificado y Libro Registro de Explotación Digital',
+          imagen: 'capturas/09_censo.png',
+          pasos: [
+            {
+              x: 36.7, y: 17.7, w: 32, h: 5.5, click: true,
+              tip: 'Búsqueda rápida por los 4 últimos dígitos (#4521)',
+              texto: 'En Censo y Libro tienes todas tus reses con el número corto en grande, tal como las llamas en la cuadra, y búsqueda instantánea.'
+            },
+            {
+              x: 65.3, y: 60.6, w: 34, h: 6, click: false, danger: true,
+              tip: 'Aviso rojo de supresión activa sobre la ficha',
+              texto: 'Desde cada tarjeta puedes ver alertas de supresión, marcar un crotal caído, registrar una receta o confirmar el DIB con un toque.'
+            },
+            {
+              x: 77.2, y: 8.3, w: 15.5, h: 4.5, click: true,
+              tip: 'Clic en "Exportar Libro Registro (CSV)"',
+              texto: 'Y si llega una inspección, exportas el Libro Registro completo en formato CSV con un solo clic.'
+            }
+          ]
+        },
+        {
+          id: 10,
+          corto: '10. Crotales',
+          etiqueta: 'Quick Win #2 · Stock y Duplicados',
+          titulo: 'Inventario Inteligente de Crotales y Lista de Duplicados (AZASA / OCA)',
+          imagen: 'capturas/10_crotales.png',
+          pasos: [
+            {
+              x: 32.3, y: 17.0, w: 32, h: 9, click: false,
+              tip: 'Stock en cajón + próximo código sugerido',
+              texto: 'La pestaña Crotales lleva la cuenta exacta de las remesas que tienes en el cajón y te avisa cuando baja el stock.'
+            },
+            {
+              x: 45.9, y: 55.2, w: 46, h: 12, click: false,
+              tip: 'Animales con crotal caído acumulados automáticamente',
+              texto: 'Cada vez que marcas en la cuadra que a una vaca se le cayó el crotal izquierdo o derecho, se añade sola a esta lista de duplicados.'
+            },
+            {
+              x: 89.5, y: 56.1, w: 12.5, h: 4.5, click: true,
+              tip: 'Clic en "Exportar pedido CSV" para AZASA / OCA',
+              texto: 'Cuando quieras hacer el pedido a AZASA o a la Oficina Comarcal Agraria, copias o exportas el listado completo sin olvidar ninguna res.'
+            }
+          ]
+        },
+        {
+          id: 11,
+          corto: '11. Reproducción',
+          etiqueta: 'Quick Win #6 · Calendario Automático',
+          titulo: 'Calendario Reproductivo: Diagnósticos, Secados y Partos Previstos',
+          imagen: 'capturas/11_reproduccion.png',
+          pasos: [
+            {
+              x: 85.6, y: 20.7, w: 18, h: 4.5, click: true,
+              tip: 'Registro rápido de inseminaciones y toro',
+              texto: 'En Reproducción anotas cada inseminación con su fecha y toro, y GanaderIA calcula automáticamente todo el calendario de gestación.'
+            },
+            {
+              x: 35.9, y: 39.7, w: 28, h: 6, click: false,
+              tip: 'Parto inminente en 7 días (vaca #5340 Mora)',
+              texto: 'Te ordena los animales por proximidad: aquí destaca que la vaca Mora tiene parto inminente en siete días para preparar el box.'
+            },
+            {
+              x: 34.5, y: 48.0, w: 28, h: 6, click: false,
+              tip: 'Aviso de secado (-60 días antes del parto)',
+              texto: 'Y justo debajo te avisa de que toca secar a Roxina en cuatro días, evitando descuidos en el manejo diario.'
+            }
+          ]
+        },
+        {
+          id: 12,
+          corto: '12. Salidas y Docs',
+          etiqueta: 'Quick Win #10 y #3 · Seguridad',
+          titulo: 'Salidas a Matadero con Bloqueo Sanitario y Carpeta de Inspección',
+          imagen: 'capturas/12_salidas_bloqueo.png',
+          pasos: [
+            {
+              x: 34.5, y: 40.4, w: 25, h: 7, click: true,
+              tip: 'Selección de vaca #5115 para lote de matadero',
+              texto: 'Al preparar una salida a matadero, al mercado de Pola de Siero o a pastos de montaña, marcas las reses que van en el lote.'
+            },
+            {
+              x: 58.9, y: 62.7, w: 66, h: 6, click: false, danger: true,
+              tip: '¡BLOQUEO SANITARIO! Evita sanciones por antibióticos',
+              texto: 'Mira esta protección clave: al intentar incluir a la vaca cinco mil ciento quince, GanaderIA bloquea la salida en rojo porque aún está en supresión de carne por amoxicilina.'
+            },
+            {
+              x: 46.5, y: 82.2, w: 46, h: 10, click: false,
+              tip: 'Carpeta de Inspección lista en 5 segundos',
+              texto: 'Y justo debajo tienes la Carpeta de Inspección con certificados de saneamiento, Plan Sanitario Integral y recetas PRESVET siempre ordenados.'
+            }
+          ]
+        },
+        {
+          id: 13,
+          corto: '13. Extensible',
+          etiqueta: 'Arquitectura SITRAN · Futuro',
+          titulo: 'Preparado para Crecer: Otras Especies y Comunidades Autónomas',
+          imagen: 'capturas/13_config_extensible.png',
+          pasos: [
+            {
+              x: 41.6, y: 49.6, w: 18, h: 7, click: true,
+              tip: 'Adaptable a Asturias, Galicia, Cantabria y Castilla y León',
+              texto: 'Aunque hemos empezado centrados en el vacuno del Principado de Asturias, el núcleo está basado en el estándar nacional SITRAN y permite cambiar de comunidad autónoma fácilmente.'
+            },
+            {
+              x: 43.6, y: 57.9, w: 24, h: 5, click: true,
+              tip: 'Extensible a Ovino, Caprino, Equino y Porcino',
+              texto: 'Desde la configuración puedes activar otras especies como ovino, caprino, equino o porcino con un solo clic, adaptando sus plazos y reglas.'
+            },
+            {
+              x: 61.0, y: 65.3, w: 12, h: 4.5, click: true,
+              tip: 'Listo para usar hoy haciendo doble clic en Abrir GanaderIA.bat',
+              texto: 'Todo listo para abrir con un doble clic y empezar a ahorrar horas de papeleo desde hoy mismo. Muchas gracias por ver la presentación de GanaderIA.'
+            }
+          ]
+        }
+      ];
+
+      // =========================================================================
+      // 2. MOTOR DE MÚSICA INSTRUMENTAL ALEGRE (WEB AUDIO API — 100% OFFLINE)
+      //    Progresión acústica folk-pop en Do Mayor (112 BPM) con guitarra/kalimba,
+      //    marimba alegre, bajo suave y percusión ligera + auto-ducking con voz.
+      // =========================================================================
+      class CheerfulMusicEngine {
+        constructor() {
+          this.ctx = null;
+          this.masterGain = null;
+          this.isPlaying = false;
+          this.enabled = true;
+          this.userVolume = 0.38;
+          this.duckFactor = 1.0;
+          this.step = 0;
+          this.timer = null;
+
+          // Frecuencias (Hz) para acordes C - G - Am - F y melodía alegre
+          this.chords = [
+            { bass: 130.81, arp: [261.63, 329.63, 392.0, 523.25], mel: [523.25, 0, 587.33, 659.25, 523.25, 0, 392.0, 0] }, // C
+            { bass: 98.0,   arp: [246.94, 293.66, 392.0, 493.88], mel: [587.33, 0, 659.25, 783.99, 659.25, 0, 587.33, 0] }, // G
+            { bass: 110.0,  arp: [220.0,  261.63, 329.63, 440.0], mel: [523.25, 0, 659.25, 587.33, 523.25, 440.0, 523.25, 0] }, // Am
+            { bass: 174.61, arp: [261.63, 349.23, 440.0, 523.25], mel: [659.25, 587.33, 523.25, 440.0, 392.0, 0, 440.0, 523.25] } // F
+          ];
+        }
+
+        ensureCtx() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.0001;
+            this.masterGain.connect(this.ctx.destination);
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+
+        updateGain() {
+          if (!this.masterGain || !this.ctx) return;
+          const target = this.enabled && this.isPlaying ? this.userVolume * this.duckFactor * 0.36 : 0.0001;
+          this.masterGain.gain.setTargetAtTime(Math.max(0.0001, target), this.ctx.currentTime, 0.14);
+        }
+
+        setDucking(speaking) {
+          this.duckFactor = speaking ? 0.34 : 1.0;
+          this.updateGain();
+        }
+
+        setVolume(v01) {
+          this.userVolume = v01;
+          this.updateGain();
+        }
+
+        setEnabled(flag) {
+          this.enabled = flag;
+          this.updateGain();
+          if (flag && !this.isPlaying) {
+            this.start();
+          }
+        }
+
+        playPluck(freq, time, dur = 0.32, vol = 0.16, type = 'triangle') {
+          if (!freq || !this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, time);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(2200, time);
+          filter.frequency.exponentialRampToValueAtTime(650, time + dur);
+
+          gain.gain.setValueAtTime(0.0001, time);
+          gain.gain.linearRampToValueAtTime(vol, time + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+
+          osc.start(time);
+          osc.stop(time + dur + 0.03);
+        }
+
+        playShaker(time, accent = false) {
+          if (!this.ctx) return;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.045);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+          }
+          const src = this.ctx.createBufferSource();
+          src.buffer = buffer;
+
+          const hp = this.ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 5200;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(accent ? 0.045 : 0.022, time);
+          gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.045);
+
+          src.connect(hp);
+          hp.connect(gain);
+          gain.connect(this.masterGain);
+          src.start(time);
+        }
+
+        playClickSfx() {
+          this.ensureCtx();
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(980, t);
+          osc.frequency.exponentialRampToValueAtTime(340, t + 0.055);
+          gain.gain.setValueAtTime(0.14, t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.065);
+        }
+
+        tick() {
+          if (!this.ctx || !this.isPlaying || !this.enabled) return;
+          const now = this.ctx.currentTime + 0.02;
+          const bar = Math.floor(this.step / 8) % this.chords.length;
+          const beat8 = this.step % 8;
+          const chord = this.chords[bar];
+
+          // Bajo cálido en tiempos 1 y 5
+          if (beat8 === 0 || beat8 === 4) {
+            this.playPluck(chord.bass, now, 0.45, 0.24, 'sine');
+          }
+
+          // Arpegio guitarra acústica / kalimba en cada corchea
+          const arpNote = chord.arp[beat8 % chord.arp.length];
+          this.playPluck(arpNote, now, 0.28, 0.13, 'triangle');
+
+          // Melodía marimba alegre
+          const melNote = chord.mel[beat8];
+          if (melNote) {
+            this.playPluck(melNote, now, 0.36, 0.12, 'sine');
+          }
+
+          // Percusión ligera shaker en contratiempos
+          if (beat8 % 2 === 1) {
+            this.playShaker(now, beat8 === 3 || beat8 === 7);
+          }
+
+          this.step++;
+        }
+
+        start() {
+          this.ensureCtx();
+          if (this.isPlaying) return;
+          this.isPlaying = true;
+          this.updateGain();
+          const eighthMs = Math.round((60 / 112 / 2) * 1000); // 112 BPM corcheas (~268ms)
+          this.timer = window.setInterval(() => this.tick(), eighthMs);
+        }
+
+        stop() {
+          this.isPlaying = false;
+          this.updateGain();
+          if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+          }
+        }
+      }
+
+      // =========================================================================
+      // 3. CONTROLADOR DE PRESENTACIÓN, VOZ EN OFF Y MOVIMIENTOS DE RATÓN
+      // =========================================================================
+      const music = new CheerfulMusicEngine();
+
+      const stageImg = document.getElementById('stageImg');
+      const stageFrame = document.getElementById('stageFrame');
+      const coverOverlay = document.getElementById('coverOverlay');
+      const slideTag = document.getElementById('slideTag');
+      const slideTitle = document.getElementById('slideTitle');
+      const slideCounter = document.getElementById('slideCounter');
+      const spotlight = document.getElementById('spotlight');
+      const calloutTip = document.getElementById('calloutTip');
+      const simCursor = document.getElementById('simCursor');
+      const subtitleBar = document.getElementById('subtitleBar');
+      const subtitleText = document.getElementById('subtitleText');
+      const progressFill = document.getElementById('progressFill');
+      const chaptersEl = document.getElementById('chapters');
+
+      const btnStartBig = document.getElementById('btnStartBig');
+      const btnPlayPause = document.getElementById('btnPlayPause');
+      const btnPrev = document.getElementById('btnPrev');
+      const btnNext = document.getElementById('btnNext');
+      const btnReplaySlide = document.getElementById('btnReplaySlide');
+      const btnMusic = document.getElementById('btnMusic');
+      const eqBars = document.getElementById('eqBars');
+      const musicVol = document.getElementById('musicVol');
+      const btnVoice = document.getElementById('btnVoice');
+      const voiceSelect = document.getElementById('voiceSelect');
+      const rateSelect = document.getElementById('rateSelect');
+      const btnExportScript = document.getElementById('btnExportScript');
+      const btnFullscreen = document.getElementById('btnFullscreen');
+
+      let currentSlide = -1; // -1 = portada
+      let currentStep = 0;
+      let isPlaying = false;
+      let voiceEnabled = true;
+      let spanishVoices = [];
+      let fallbackTimer = null;
+      let runToken = 0;
+
+      // Construir barra de capítulos
+      ESCENAS.forEach((esc, idx) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chap-btn';
+        b.textContent = esc.corto;
+        b.addEventListener('click', () => {
+          coverOverlay.classList.add('hidden');
+          music.start();
+          updateMusicUi();
+          goToSlide(idx, true);
+        });
+        chaptersEl.appendChild(b);
+      });
+
+      function populateVoices() {
+        if (!('speechSynthesis' in window)) return;
+        const all = window.speechSynthesis.getVoices();
+        spanishVoices = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith('es'));
+        // Ordenar priorizando es-ES y voces naturales de Microsoft/Google
+        spanishVoices.sort((a, b) => {
+          const score = (v) => {
+            let s = 0;
+            if (v.lang.toLowerCase() === 'es-es') s += 10;
+            if (/natural|online|google|elvira|alvaro|helena|laura/i.test(v.name)) s += 5;
+            return s;
+          };
+          return score(b) - score(a);
+        });
+
+        voiceSelect.innerHTML = '';
+        if (spanishVoices.length === 0) {
+          const opt = document.createElement('option');
+          opt.textContent = 'Voz del sistema (es-ES)';
+          voiceSelect.appendChild(opt);
+          return;
+        }
+        spanishVoices.forEach((v, idx) => {
+          const opt = document.createElement('option');
+          opt.value = String(idx);
+          opt.textContent = `${v.name.replace(/Microsoft |Google /g, '')} (${v.lang})`;
+          voiceSelect.appendChild(opt);
+        });
+      }
+
+      if ('speechSynthesis' in window) {
+        populateVoices();
+        window.speechSynthesis.onvoiceschanged = populateVoices;
+      }
+
+      function clearTimersAndSpeech() {
+        runToken++;
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        music.setDucking(false);
+      }
+
+      function spawnClickRipple(xPct, yPct) {
+        simCursor.classList.add('clicking');
+        music.playClickSfx();
+        const r = document.createElement('div');
+        r.className = 'click-ripple';
+        r.style.left = `${xPct}%`;
+        r.style.top = `${yPct}%`;
+        stageFrame.appendChild(r);
+        setTimeout(() => simCursor.classList.remove('clicking'), 170);
+        setTimeout(() => r.remove(), 760);
+      }
+
+      function animateCursorToStep(paso) {
+        simCursor.classList.add('visible');
+        simCursor.style.left = `${paso.x}%`;
+        simCursor.style.top = `${paso.y}%`;
+
+        spotlight.style.left = `${paso.x}%`;
+        spotlight.style.top = `${paso.y}%`;
+        spotlight.style.width = `${paso.w || 14}%`;
+        spotlight.style.height = `${paso.h || 6}%`;
+        spotlight.className = `spotlight-box visible ${paso.danger ? 'danger' : ''}`;
+
+        // Evitar que el tooltip se salga por arriba si el punto está muy arriba
+        const clampedX = Math.min(82, Math.max(18, paso.x));
+        const below = paso.y < 18;
+        calloutTip.style.left = `${clampedX}%`;
+        calloutTip.style.top = below ? `${paso.y + (paso.h || 6) / 2 + 5}%` : `${paso.y - (paso.h || 6) / 2}%`;
+        calloutTip.style.transform = below ? 'translate(-50%, 6px)' : 'translate(-50%, calc(-100% - 10px))';
+        calloutTip.textContent = paso.tip;
+        calloutTip.classList.add('visible');
+
+        if (paso.click) {
+          const myToken = runToken;
+          setTimeout(() => {
+            if (myToken !== runToken) return;
+            spawnClickRipple(paso.x, paso.y);
+          }, 860);
+        }
+      }
+
+      function updatePlayUi() {
+        btnPlayPause.textContent = isPlaying ? '⏸ Pausar' : '▶ Reproducir tour';
+      }
+
+      function updateMusicUi() {
+        btnMusic.innerHTML = `<span id="eqBars" class="eq-bars ${music.enabled && music.isPlaying ? 'playing' : ''}"><i></i><i></i><i></i></span> Música alegre: ${music.enabled ? 'ON' : 'OFF'}`;
+        btnMusic.classList.toggle('active', music.enabled);
+      }
+
+      function updateChapterHighlight() {
+        Array.from(chaptersEl.children).forEach((btn, idx) => {
+          btn.classList.toggle('active', idx === currentSlide);
+        });
+        const pct = currentSlide < 0 ? 0 : Math.round(((currentSlide + 1) / ESCENAS.length) * 100);
+        progressFill.style.width = `${pct}%`;
+      }
+
+      function runStep(slideIdx, stepIdx) {
+        const escena = ESCENAS[slideIdx];
+        if (!escena) return;
+        const paso = escena.pasos[stepIdx];
+        if (!paso) {
+          // Pasar a la siguiente escena automáticamente
+          if (slideIdx + 1 < ESCENAS.length) {
+            const myToken = runToken;
+            fallbackTimer = setTimeout(() => {
+              if (myToken !== runToken || !isPlaying) return;
+              goToSlide(slideIdx + 1, true);
+            }, 950);
+          } else {
+            isPlaying = false;
+            music.setDucking(false);
+            updatePlayUi();
+          }
+          return;
+        }
+
+        currentStep = stepIdx;
+        const myToken = runToken;
+
+        animateCursorToStep(paso);
+        subtitleText.textContent = paso.texto;
+        subtitleBar.classList.remove('hidden');
+
+        const avanzarAlSiguiente = () => {
+          if (myToken !== runToken || !isPlaying) return;
+          fallbackTimer = setTimeout(() => {
+            if (myToken !== runToken || !isPlaying) return;
+            runStep(slideIdx, stepIdx + 1);
+          }, paso.click ? 650 : 420);
+        };
+
+        if (voiceEnabled && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(paso.texto);
+          utter.lang = 'es-ES';
+          utter.rate = Number(rateSelect.value) || 1.03;
+          utter.pitch = 1.02;
+          const selectedIdx = Number(voiceSelect.value);
+          if (spanishVoices[selectedIdx]) {
+            utter.voice = spanishVoices[selectedIdx];
+          }
+
+          utter.onstart = () => {
+            if (myToken === runToken) music.setDucking(true);
+          };
+          utter.onend = () => {
+            music.setDucking(false);
+            avanzarAlSiguiente();
+          };
+          utter.onerror = () => {
+            music.setDucking(false);
+            avanzarAlSiguiente();
+          };
+
+          window.speechSynthesis.speak(utter);
+        } else {
+          // Sin voz: temporizador proporcional a longitud de frase
+          const duracionMs = Math.max(3600, Math.min(8200, paso.texto.length * 52));
+          fallbackTimer = setTimeout(() => {
+            avanzarAlSiguiente();
+          }, duracionMs);
+        }
+      }
+
+      function goToSlide(idx, autoPlay = true) {
+        clearTimersAndSpeech();
+        currentSlide = Math.max(0, Math.min(ESCENAS.length - 1, idx));
+        currentStep = 0;
+        const escena = ESCENAS[currentSlide];
+
+        coverOverlay.classList.add('hidden');
+        slideTag.textContent = escena.etiqueta;
+        slideTitle.textContent = escena.titulo;
+        slideCounter.textContent = `Escena ${currentSlide + 1} / ${ESCENAS.length}`;
+        updateChapterHighlight();
+
+        stageImg.classList.add('fading');
+        setTimeout(() => {
+          stageImg.src = escena.imagen;
+          stageImg.onload = () => stageImg.classList.remove('fading');
+          setTimeout(() => stageImg.classList.remove('fading'), 120);
+        }, 140);
+
+        isPlaying = autoPlay;
+        updatePlayUi();
+
+        if (autoPlay) {
+          const myToken = runToken;
+          fallbackTimer = setTimeout(() => {
+            if (myToken !== runToken) return;
+            runStep(currentSlide, 0);
+          }, 420);
+        } else {
+          animateCursorToStep(escena.pasos[0]);
+          subtitleText.textContent = escena.pasos[0].texto;
+          subtitleBar.classList.remove('hidden');
+        }
+      }
+
+      // Eventos UI
+      btnStartBig.addEventListener('click', () => {
+        music.start();
+        updateMusicUi();
+        goToSlide(0, true);
+      });
+
+      btnPlayPause.addEventListener('click', () => {
+        if (currentSlide < 0) {
+          music.start();
+          updateMusicUi();
+          goToSlide(0, true);
+          return;
+        }
+        if (isPlaying) {
+          isPlaying = false;
+          clearTimersAndSpeech();
+          updatePlayUi();
+        } else {
+          music.start();
+          updateMusicUi();
+          isPlaying = true;
+          updatePlayUi();
+          runStep(currentSlide, currentStep);
+        }
+      });
+
+      btnPrev.addEventListener('click', () => {
+        if (currentSlide <= 0) {
+          goToSlide(0, isPlaying);
+        } else {
+          goToSlide(currentSlide - 1, true);
+        }
+      });
+
+      btnNext.addEventListener('click', () => {
+        if (currentSlide < 0) {
+          music.start();
+          updateMusicUi();
+          goToSlide(0, true);
+        } else if (currentSlide + 1 < ESCENAS.length) {
+          goToSlide(currentSlide + 1, true);
+        }
+      });
+
+      btnReplaySlide.addEventListener('click', () => {
+        if (currentSlide < 0) goToSlide(0, true);
+        else goToSlide(currentSlide, true);
+      });
+
+      btnMusic.addEventListener('click', () => {
+        music.setEnabled(!music.enabled);
+        updateMusicUi();
+      });
+
+      musicVol.addEventListener('input', (e) => {
+        music.setVolume(Number(e.target.value) / 100);
+      });
+
+      btnVoice.addEventListener('click', () => {
+        voiceEnabled = !voiceEnabled;
+        btnVoice.textContent = voiceEnabled ? '🎙️ Voz en off: ON' : '🔇 Voz en off: OFF';
+        btnVoice.classList.toggle('active', voiceEnabled);
+        if (!voiceEnabled && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          music.setDucking(false);
+        }
+      });
+
+      btnExportScript.addEventListener('click', () => {
+        const lineas = [
+          'GUIÓN DE VOZ EN OFF Y COREOGRAFÍA DE RATÓN — GANADERIA',
+          '=======================================================',
+          '',
+          ...ESCENAS.flatMap((e) => [
+            `ESCENA ${e.id}: ${e.titulo} (${e.imagen})`,
+            ...e.pasos.map(
+              (p, i) =>
+                `  [Paso ${i + 1} | Ratón (${p.x}%, ${p.y}%)${p.click ? ' + CLIC' : ''} | "${p.tip}"]\n  VOZ: ${p.texto}`,
+            ),
+            '',
+          ]),
+        ];
+        const blob = new Blob([lineas.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'guion_voz_en_off_ganaderia.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      btnFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+        if (e.code === 'Space') {
+          e.preventDefault();
+          btnPlayPause.click();
+        } else if (e.code === 'ArrowRight') {
+          btnNext.click();
+        } else if (e.code === 'ArrowLeft') {
+          btnPrev.click();
+        } else if (e.key.toLowerCase() === 'm') {
+          btnMusic.click();
+        } else if (e.key.toLowerCase() === 'f') {
+          btnFullscreen.click();
+        }
+      });
+    </script>
+  </body>
+</html>

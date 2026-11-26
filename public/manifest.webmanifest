@@ -1,0 +1,18 @@
+{
+  "name": "GanaderIA — Gestión Ganadera Asturias",
+  "short_name": "GanaderIA",
+  "description": "Gestión inteligente de crotales, plazos, robot de ordeño, recetas PRESVET y trámites ganaderos (100% offline).",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f1",
+  "theme_color": "#0f3d2e",
+  "lang": "es-ES",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%230f3d2e'/%3E%3Cpath d='M66 54h60l18 30v60a18 18 0 0 1-18 18H66a18 18 0 0 1-18-18V84l18-30z' fill='%23facc15'/%3E%3Ccircle cx='96' cy='72' r='10' fill='%230f3d2e'/%3E%3Ctext x='96' y='132' font-family='monospace' font-weight='900' font-size='38' text-anchor='middle' fill='%23422006'%3EGIA%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

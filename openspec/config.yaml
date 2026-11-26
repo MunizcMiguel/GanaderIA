@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Proyecto: GanaderIA — Gestión ganadera y automatización de trámites oficiales.
+  Ámbito inicial: Ganado vacuno en el Principado de Asturias (Agroficina Virtual / RemoWeb),
+  con arquitectura basada en SITRAN (REGA, RIIA, REMO) extensible a otras especies (ovino, caprino,
+  equino, porcino) y otras Comunidades Autónomas (Galicia, Cantabria, Castilla y León).
+
+  Plan de referencia: PLAN_TRABAJO.md
+  Stack actual:
+  - Frontend web (PWA responsive): React 19 + TypeScript + Vite 6 + Tailwind CSS v4 + Lucide React
+  - OCR local en navegador: tesseract.js (español)
+  - Tests: Vitest (`npm.cmd test`) y build (`npm.cmd run build`)
+  - Extensión de navegador (Manifest V3): `extension-remoweb/` (autocompletado 1-clic RemoWeb)
+  - Lanzador Windows sin PowerShell: `Abrir GanaderIA.bat`
+
+  Estructura clave:
+  - `src/domain/`: lógica pura y determinista (reglas SITRAN, plazos 7d/20d, crotales, importador Lely/DeLaval, voz, reproducción, OCR PRESVET/DIB)
+  - `src/components/`: vistas y modales móviles/escritorio
+  - `src/data/`: datos demo Asturias y persistencia localStorage
+
+rules:
+  proposal:
+    - Indicar siempre qué código del plan (PLAN_TRABAJO.md) o necesidad real del ganadero resuelve
+    - Indicar explícitamente qué queda fuera de alcance
+  tasks:
+    - Separar siempre lógica pura de dominio (`src/domain/`) con tests Vitest de la interfaz (`src/components/`)
+
+operations:
+  apply:
+    guidance:
+      - Ejecutar `npm.cmd test` y `npm.cmd run build` tras implementar cada bloque
+      - Mantener compatibilidad hacia atrás con el estado guardado en localStorage

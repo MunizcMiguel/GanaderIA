@@ -1,0 +1,5 @@
+Event_Type;Cow_Number;Dam_Eartag;Calf_Eartag;Calf_Sex;Breed;Calving_Date;Reason
+Calving;104;ES030041204521;ES030045120001;Female;Frisona (Holstein);2026-11-18;Parto normal
+Calving;125;ES030041205340;;Female;Frisona (Holstein);2026-11-19;Parto en robot sin subir a Agroficina
+Calving;131;ES030041205772;;Male;Asturiana de los Valles;2026-11-22;Parto nuevo sin crotal asignado
+Dead;089;;ES030041203901;Female;Frisona (Holstein);2026-11-22;Baja registrada en robot
