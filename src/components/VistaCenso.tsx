@@ -43,6 +43,7 @@ import type {
   TipoPesaje,
   UnidadGanadera,
 } from '../domain/types';
+import { AvatarVacaFoto } from './AvatarVacaFoto';
 import { BotonCopiar } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
 import { DrawerFichaAnimal } from './DrawerFichaAnimal';
@@ -730,10 +731,11 @@ export function VistaCenso({
                     />
                   )}
                   {animal.fotoDataUrl ? (
-                    <img
-                      src={animal.fotoDataUrl}
-                      alt={animal.nombre || animal.crotal}
-                      className="h-12 w-12 shrink-0 rounded-xl border border-[#dce4d6] object-cover shadow-2xs"
+                    <AvatarVacaFoto
+                      fotoDataUrl={animal.fotoDataUrl}
+                      numeroCorto={animal.numeroCorto}
+                      nombre={animal.nombre}
+                      tamano="sm"
                     />
                   ) : (
                     <CrotalVisual

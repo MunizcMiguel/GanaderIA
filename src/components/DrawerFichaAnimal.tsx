@@ -30,6 +30,10 @@ import {
   formatearEdadExacta,
 } from '../domain/gestionAvanzada';
 import { INCIDENCIAS_META, obtenerCorralesActivos } from '../domain/incidencias';
+import {
+  generarFotoSiluetaVaca,
+  leerArchivoComoDataUrl,
+} from '../domain/recorteSilueta';
 import type {
   CuarteronUbre,
   EstadoCrotalFisico,
@@ -38,6 +42,7 @@ import type {
   TipoPesaje,
   UnidadGanadera,
 } from '../domain/types';
+import { AvatarVacaFoto } from './AvatarVacaFoto';
 import { BotonCopiar } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
 
@@ -66,34 +71,6 @@ interface Props {
   onAbrirTratamiento: (animal: UnidadGanadera) => void;
   onAbrirBajaAnimal: (animal: UnidadGanadera) => void;
   onSeleccionarOtroAnimal: (animal: UnidadGanadera) => void;
-}
-
-function comprimirImagenADataUrl(file: File, maxSide = 320): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-        const w = Math.max(1, Math.round(img.width * scale));
-        const h = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(String(reader.result));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.78));
-      };
-      img.onerror = reject;
-      img.src = String(reader.result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 export function DrawerFichaAnimal({
@@ -135,9 +112,17 @@ export function DrawerFichaAnimal({
   const [editFechaOficial, setEditFechaOficial] = useState(false);
   const [fechaOficialVal, setFechaOficialVal] = useState(animal.fechaNacimientoOficial || '');
 
+  // Previsualización y ajuste de recorte de silueta al subir foto
+  const [fotoOriginalRaw, setFotoOriginalRaw] = useState<string | null>(null);
+  const [fotoPreviewRecorte, setFotoPreviewRecorte] = useState<string | null>(null);
+  const [toleranciaRecorte, setToleranciaRecorte] = useState(38);
+  const [procesandoFoto, setProcesandoFoto] = useState(false);
+
   useEffect(() => {
     setFechaOficialVal(animal.fechaNacimientoOficial || '');
     setEditFechaOficial(false);
+    setFotoOriginalRaw(null);
+    setFotoPreviewRecorte(null);
   }, [animal.id, animal.fechaNacimientoOficial]);
 
   useEffect(() => {
@@ -228,12 +213,25 @@ export function DrawerFichaAnimal({
 
   const handleSubirFoto = async (file: File | undefined) => {
     if (!file || !onActualizarFoto) return;
+    setProcesandoFoto(true);
     try {
-      const dataUrl = await comprimirImagenADataUrl(file);
-      onActualizarFoto(animal.id, dataUrl);
+      const raw = await leerArchivoComoDataUrl(file);
+      setFotoOriginalRaw(raw);
+      setToleranciaRecorte(38);
+      const res = await generarFotoSiluetaVaca(raw, 38);
+      setFotoPreviewRecorte(res.dataUrl);
     } catch {
       // ignora errores de lectura de imagen
+    } finally {
+      setProcesandoFoto(false);
     }
+  };
+
+  const handleAjustarTolerancia = async (nuevaTol: number) => {
+    setToleranciaRecorte(nuevaTol);
+    if (!fotoOriginalRaw) return;
+    const res = await generarFotoSiluetaVaca(fotoOriginalRaw, nuevaTol);
+    setFotoPreviewRecorte(res.dataUrl);
   };
 
   const prefijoCrotal = animal.crotal.slice(0, Math.max(0, animal.crotal.length - 4));
@@ -306,22 +304,23 @@ export function DrawerFichaAnimal({
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
           {/* Crotal oficial + Foto del animal + resumen */}
           <div className="card-surface flex flex-col items-center gap-4 rounded-2xl p-5 sm:flex-row">
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               {animal.fotoDataUrl ? (
-                <div className="relative">
-                  <img
-                    src={animal.fotoDataUrl}
-                    alt={animal.nombre || animal.crotal}
-                    className="h-24 w-24 rounded-2xl border-2 border-[#dce4d6] object-cover shadow-xs"
+                <div className="relative pb-1">
+                  <AvatarVacaFoto
+                    fotoDataUrl={animal.fotoDataUrl}
+                    numeroCorto={animal.numeroCorto}
+                    nombre={animal.nombre}
+                    tamano="lg"
                   />
                   {onActualizarFoto && (
                     <button
                       type="button"
                       onClick={() => onActualizarFoto(animal.id, undefined)}
                       title="Quitar foto"
-                      className="absolute -right-1.5 -top-1.5 rounded-full bg-white p-1 text-red-600 shadow hover:bg-red-50"
+                      className="absolute -right-1 -top-1 rounded-full bg-white p-1.5 text-red-600 shadow hover:bg-red-50"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -343,15 +342,23 @@ export function DrawerFichaAnimal({
                     accept="image/*"
                     capture="environment"
                     className="hidden"
-                    onChange={(e) => handleSubirFoto(e.target.files?.[0])}
+                    onChange={(e) => {
+                      handleSubirFoto(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
                   />
                   <button
                     type="button"
+                    disabled={procesandoFoto}
                     onClick={() => fotoInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1 text-[11px] font-bold text-[#31453b] hover:bg-[#edf1e9]"
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1 text-[11px] font-bold text-[#31453b] hover:bg-[#edf1e9] disabled:opacity-50"
                   >
                     <Camera className="h-3 w-3" />
-                    {animal.fotoDataUrl ? 'Cambiar foto' : 'Añadir foto'}
+                    {procesandoFoto
+                      ? 'Recortando silueta...'
+                      : animal.fotoDataUrl
+                        ? 'Cambiar foto'
+                        : 'Sacar / Subir foto'}
                   </button>
                 </>
               )}
@@ -451,6 +458,71 @@ export function DrawerFichaAnimal({
               </div>
             </div>
           </div>
+
+          {/* Previsualización del recorte automático de silueta */}
+          {fotoPreviewRecorte && onActualizarFoto && (
+            <div className="card-surface space-y-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 p-4 text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-extrabold text-[#0f3d2e]">
+                  Silueta recortada sobre fondo blanco + círculo verde
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFotoOriginalRaw(null);
+                    setFotoPreviewRecorte(null);
+                  }}
+                  className="text-[#52655c] hover:text-[#0f1f18]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <AvatarVacaFoto
+                  fotoDataUrl={fotoPreviewRecorte}
+                  numeroCorto={animal.numeroCorto}
+                  nombre={animal.nombre}
+                  tamano="lg"
+                />
+                <div className="w-full space-y-2.5">
+                  <label className="block font-bold text-[#31453b]">
+                    Ajuste de recorte de fondo ({toleranciaRecorte})
+                    <input
+                      type="range"
+                      min="16"
+                      max="70"
+                      value={toleranciaRecorte}
+                      onChange={(e) => handleAjustarTolerancia(Number(e.target.value))}
+                      className="mt-1 w-full accent-[#0f3d2e]"
+                    />
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onActualizarFoto(animal.id, fotoPreviewRecorte);
+                        setFotoOriginalRaw(null);
+                        setFotoPreviewRecorte(null);
+                      }}
+                      className="flex-1 rounded-xl bg-[#0f3d2e] py-2 font-extrabold text-white hover:bg-[#175742]"
+                    >
+                      Usar esta silueta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFotoOriginalRaw(null);
+                        setFotoPreviewRecorte(null);
+                      }}
+                      className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 font-bold text-[#31453b]"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Último Control Lechero ASCOL (solo Leche/Mixta) */}
           {ultimoControl && (

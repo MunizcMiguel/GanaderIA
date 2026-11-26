@@ -44,6 +44,7 @@ import {
   generarHtmlLibroTratamientos,
   importarCensoDesdeCsv,
 } from '../librosOficiales';
+import { segmentarSiluetaBuffer } from '../recorteSilueta';
 import {
   anadirCorralPersonalizado,
   detectarVacasProblema,
@@ -371,5 +372,29 @@ describe('GanaderIA — Motor de Dominio SITRAN (Asturias)', () => {
     expect(imp.errores).toHaveLength(0);
     expect(imp.nuevos).toHaveLength(1);
     expect(imp.nuevos[0].nombre).toBe('Lucía');
+  });
+
+  it('recorta el fondo exterior y conserva la silueta central de la vaca', () => {
+    const w = 40;
+    const h = 40;
+    const rgba = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = (y * w + x) * 4;
+        const esSujeto = x >= 12 && x <= 28 && y >= 10 && y <= 30;
+        // Fondo verde prado / azul cielo vs sujeto negro/blanco
+        rgba[p] = esSujeto ? 35 : 110;
+        rgba[p + 1] = esSujeto ? 30 : 185;
+        rgba[p + 2] = esSujeto ? 28 : 220;
+        rgba[p + 3] = 255;
+      }
+    }
+    const res = segmentarSiluetaBuffer(rgba, w, h, 35);
+    expect(res.porcentajeRecortado).toBeGreaterThan(50);
+    expect(res.minX).toBeGreaterThanOrEqual(11);
+    expect(res.maxX).toBeLessThanOrEqual(29);
+    // El píxel de esquina (0,0) debe quedar transparente y el centro (20,20) opaco
+    expect(res.rgba[3]).toBe(0);
+    expect(res.rgba[(20 * w + 20) * 4 + 3]).toBe(255);
   });
 });

@@ -43,6 +43,7 @@ import type {
   TipoIncidenciaClinica,
   UnidadGanadera,
 } from '../domain/types';
+import { AvatarVacaFoto } from './AvatarVacaFoto';
 import { CrotalVisual } from './CrotalVisual';
 import { ModalBase } from './ModalBase';
 import { VistaCalendario } from './VistaCalendario';
@@ -485,10 +486,11 @@ export function ModoCuadraMovil({
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       {a.fotoDataUrl ? (
-                        <img
-                          src={a.fotoDataUrl}
-                          alt={a.nombre || a.crotal}
-                          className="h-11 w-11 shrink-0 rounded-xl border border-[#dce4d6] object-cover"
+                        <AvatarVacaFoto
+                          fotoDataUrl={a.fotoDataUrl}
+                          numeroCorto={a.numeroCorto}
+                          nombre={a.nombre}
+                          tamano="sm"
                         />
                       ) : (
                         <CrotalVisual
