@@ -7,6 +7,7 @@ import {
   GitCompare,
   LayoutDashboard,
   Settings,
+  Smartphone,
   Sprout,
   Tag,
   Truck,
@@ -30,6 +31,7 @@ import {
   ModalTratamiento,
 } from './components/ModalesRegistro';
 import { ModalLibrosOficiales } from './components/ModalLibrosOficiales';
+import { ModoCuadraMovil } from './components/ModoCuadraMovil';
 import { VistaAnaliticaVet } from './components/VistaAnaliticaVet';
 import { VistaCalendario } from './components/VistaCalendario';
 import { VistaCenso } from './components/VistaCenso';
@@ -123,6 +125,40 @@ export default function App() {
   };
 
   const [pestana, setPestana] = useState<Pestana>('panel');
+  const [modoPreferido, setModoPreferido] = useState<'AUTO' | 'CUADRA' | 'OFICINA'>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('modo');
+      if (p === 'cuadra') return 'CUADRA';
+      if (p === 'oficina') return 'OFICINA';
+      const saved = window.localStorage.getItem('ganaderia_modo_ui');
+      if (saved === 'CUADRA' || saved === 'OFICINA') return saved;
+    } catch {
+      // ignora
+    }
+    return 'AUTO';
+  });
+  const [esPantallaMovil, setEsPantallaMovil] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
+  );
+
+  useEffect(() => {
+    const onResize = () => setEsPantallaMovil(window.innerWidth < 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const usarModoCuadra =
+    modoPreferido === 'CUADRA' || (modoPreferido === 'AUTO' && esPantallaMovil);
+
+  const cambiarModoPreferido = (nuevo: 'AUTO' | 'CUADRA' | 'OFICINA') => {
+    setModoPreferido(nuevo);
+    try {
+      if (nuevo === 'AUTO') window.localStorage.removeItem('ganaderia_modo_ui');
+      else window.localStorage.setItem('ganaderia_modo_ui', nuevo);
+    } catch {
+      // ignora
+    }
+  };
   const [toast, setToast] = useState<string | null>(null);
   const [drawerAnimalGlobalId, setDrawerAnimalGlobalId] = useState<string | null>(null);
 
@@ -1177,8 +1213,29 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
-      {/* Sidebar escritorio limpia y agrupada */}
+    <div className="min-h-screen bg-[#f4f6f1]">
+      {usarModoCuadra ? (
+        <ModoCuadraMovil
+          estado={estado}
+          alertas={alertas}
+          numPendientes={numPendientes}
+          onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
+          onAbrirVoz={() => setModalVoz(true)}
+          onAbrirOcr={() => setModalOcr(true)}
+          onAbrirNacimiento={() => setModalNacimiento(true)}
+          onAbrirCompra={() => setModalCompra(true)}
+          onAbrirBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
+          onAbrirLibros={() => setModalLibros('EXPLOTACION')}
+          onAbrirConfig={() => setModalConfig(true)}
+          onRegistrarIncidencia={registrarIncidencia}
+          onCambiarAModoOficina={(destino) => {
+            if (destino) setPestana(destino);
+            cambiarModoPreferido('OFICINA');
+          }}
+        />
+      ) : (
+        <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
+          {/* Sidebar escritorio limpia y agrupada */}
       <aside className="no-print sticky top-0 hidden h-screen w-68 shrink-0 flex-col border-r border-[#e1e7dc] bg-white lg:flex">
         <div className="border-b border-[#edf1e9] px-5 py-4">
           <div className="flex items-center gap-2.5">
@@ -1223,7 +1280,15 @@ export default function App() {
           </div>
         </nav>
 
-        <div className="border-t border-[#edf1e9] p-3.5">
+        <div className="space-y-1 border-t border-[#edf1e9] p-3.5">
+          <button
+            type="button"
+            onClick={() => cambiarModoPreferido('CUADRA')}
+            className="flex w-full items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-bold text-[#0f3d2e] transition hover:bg-emerald-100"
+          >
+            <Smartphone className="h-4 w-4 text-emerald-700" />
+            Probar Modo Cuadra (Móvil)
+          </button>
           <button
             type="button"
             onClick={() => setModalConfig(true)}
@@ -1250,14 +1315,24 @@ export default function App() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setModalConfig(true)}
-          className="rounded-xl border border-[#dce4d6] bg-[#f8faf6] p-2 text-[#4a5d54]"
-          aria-label="Configuración"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => cambiarModoPreferido('CUADRA')}
+            className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-[#0f3d2e]"
+          >
+            <Smartphone className="h-3.5 w-3.5" />
+            Cuadra
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalConfig(true)}
+            className="rounded-xl border border-[#dce4d6] bg-[#f8faf6] p-2 text-[#4a5d54]"
+            aria-label="Configuración"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       {/* Contenido principal */}
@@ -1439,6 +1514,8 @@ export default function App() {
         onRegistrarNacimiento={() => setModalNacimiento(true)}
         onRegistrarBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
       />
+        </div>
+      )}
 
       {/* Modales y Drawer global (desde Calendario) */}
       {drawerAnimalGlobalId &&
