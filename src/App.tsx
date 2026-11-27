@@ -1010,6 +1010,26 @@ export default function App() {
     mostrarToast('Fecha de nacimiento oficial actualizada.');
   };
 
+  const actualizarGenealogiaAnimal = (
+    animalId: string,
+    datos: { crotalMadre?: string; crotalPadre?: string; padreNombre?: string },
+  ) => {
+    setEstado((prev) => ({
+      ...prev,
+      animales: prev.animales.map((a) =>
+        a.id === animalId
+          ? {
+              ...a,
+              crotalMadre: datos.crotalMadre,
+              crotalPadre: datos.crotalPadre,
+              padreNombre: datos.padreNombre,
+            }
+          : a,
+      ),
+    }));
+    mostrarToast('Genealogía (madre / padre) actualizada.');
+  };
+
   const importarAnimalesCenso = (nuevos: UnidadGanadera[]) => {
     setEstado((prev) => ({
       ...prev,
@@ -1482,6 +1502,7 @@ export default function App() {
             onRegistrarPesaje={registrarPesaje}
             onActualizarFoto={actualizarFotoAnimal}
             onActualizarFechaOficial={actualizarFechaOficialAnimal}
+            onActualizarGenealogia={actualizarGenealogiaAnimal}
             onImportarAnimalesCenso={importarAnimalesCenso}
             onToggleDib={toggleDib}
             onAbrirNacimiento={() => setModalNacimiento(true)}
@@ -1725,6 +1746,7 @@ export default function App() {
               onRegistrarPesaje={registrarPesaje}
               onActualizarFoto={actualizarFotoAnimal}
               onActualizarFechaOficial={actualizarFechaOficialAnimal}
+              onActualizarGenealogia={actualizarGenealogiaAnimal}
               onToggleDib={toggleDib}
               onAbrirTratamiento={(a) => setModalTratamiento(a)}
               onAbrirBajaAnimal={(a) => setModalBajaAnimal(a)}

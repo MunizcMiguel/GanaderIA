@@ -77,6 +77,10 @@ interface Props {
   }) => void;
   onActualizarFoto: (animalId: string, fotoDataUrl: string | undefined) => void;
   onActualizarFechaOficial: (animalId: string, fechaOficial: string | undefined) => void;
+  onActualizarGenealogia?: (
+    animalId: string,
+    datos: { crotalMadre?: string; crotalPadre?: string; padreNombre?: string },
+  ) => void;
   onImportarAnimalesCenso: (nuevos: UnidadGanadera[]) => void;
   onToggleDib: (animalId: string) => void;
   onAbrirNacimiento: () => void;
@@ -103,6 +107,7 @@ export function VistaCenso({
   onRegistrarPesaje,
   onActualizarFoto,
   onActualizarFechaOficial,
+  onActualizarGenealogia,
   onImportarAnimalesCenso,
   onToggleDib,
   onAbrirNacimiento,
@@ -1066,6 +1071,7 @@ export function VistaCenso({
           onRegistrarPesaje={onRegistrarPesaje}
           onActualizarFoto={onActualizarFoto}
           onActualizarFechaOficial={onActualizarFechaOficial}
+          onActualizarGenealogia={onActualizarGenealogia}
           onToggleDib={onToggleDib}
           onAbrirTratamiento={onAbrirTratamiento}
           onAbrirBajaAnimal={onAbrirBajaAnimal}

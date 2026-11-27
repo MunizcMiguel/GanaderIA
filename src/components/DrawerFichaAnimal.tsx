@@ -67,6 +67,10 @@ interface Props {
   }) => void;
   onActualizarFoto?: (animalId: string, fotoDataUrl: string | undefined) => void;
   onActualizarFechaOficial?: (animalId: string, fechaOficial: string | undefined) => void;
+  onActualizarGenealogia?: (
+    animalId: string,
+    datos: { crotalMadre?: string; crotalPadre?: string; padreNombre?: string },
+  ) => void;
   onToggleDib: (animalId: string) => void;
   onAbrirTratamiento: (animal: UnidadGanadera) => void;
   onAbrirBajaAnimal: (animal: UnidadGanadera) => void;
@@ -83,6 +87,7 @@ export function DrawerFichaAnimal({
   onRegistrarPesaje,
   onActualizarFoto,
   onActualizarFechaOficial,
+  onActualizarGenealogia,
   onToggleDib,
   onAbrirTratamiento,
   onAbrirBajaAnimal,
@@ -93,6 +98,17 @@ export function DrawerFichaAnimal({
   const supLeche = estaEnSupresionLeche(animal, hoy);
   const supCarne = estaEnSupresionCarne(animal, hoy);
   const crotalNorm = normalizarCrotal(animal.crotal);
+  const [editandoMadre, setEditandoMadre] = useState(false);
+  const [editandoPadre, setEditandoPadre] = useState(false);
+  const [madreInput, setMadreInput] = useState(animal.crotalMadre || '');
+  const [padreInput, setPadreInput] = useState(animal.padreNombre || animal.crotalPadre || '');
+
+  useEffect(() => {
+    setEditandoMadre(false);
+    setEditandoPadre(false);
+    setMadreInput(animal.crotalMadre || '');
+    setPadreInput(animal.padreNombre || animal.crotalPadre || '');
+  }, [animal.id, animal.crotalMadre, animal.padreNombre, animal.crotalPadre]);
   const del = !esCarne ? calcularDEL(animal, hoy) : undefined;
   const corrales = obtenerCorralesActivos(estado);
   const ugmAnimal = calcularUGMAnimal(animal, hoy);
@@ -939,13 +955,96 @@ export function DrawerFichaAnimal({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              {/* Rama Materna */}
-              <div className="space-y-1.5 rounded-xl border border-rose-200/80 bg-rose-50/40 p-2.5">
-                <span className="text-[10px] font-extrabold uppercase text-rose-800">Madre</span>
-                {madre ? (
+              {/* Rama Materna (clic para registrar o editar) */}
+              <div
+                onClick={() => {
+                  if (!editandoMadre && onActualizarGenealogia) setEditandoMadre(true);
+                }}
+                className={`space-y-1.5 rounded-xl border border-rose-200/80 bg-rose-50/40 p-2.5 ${
+                  !editandoMadre && onActualizarGenealogia
+                    ? 'cursor-pointer transition hover:border-rose-400'
+                    : ''
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-extrabold uppercase text-rose-800">Madre</span>
+                  {onActualizarGenealogia && !editandoMadre && (
+                    <span className="text-[10px] font-bold text-rose-700 underline">
+                      {animal.crotalMadre ? 'Editar' : '+ Registrar'}
+                    </span>
+                  )}
+                </div>
+
+                {editandoMadre ? (
+                  <form
+                    onClick={(e) => e.stopPropagation()}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const val = madreInput.trim().toUpperCase();
+                      onActualizarGenealogia?.(animal.id, {
+                        crotalMadre: val || undefined,
+                        crotalPadre: animal.crotalPadre,
+                        padreNombre: animal.padreNombre,
+                      });
+                      setEditandoMadre(false);
+                    }}
+                    className="space-y-1.5"
+                  >
+                    <select
+                      value={
+                        estado.animales.some(
+                          (a) =>
+                            a.sexo === 'H' &&
+                            a.id !== animal.id &&
+                            normalizarCrotal(a.crotal) === normalizarCrotal(madreInput),
+                        )
+                          ? normalizarCrotal(madreInput)
+                          : ''
+                      }
+                      onChange={(e) => {
+                        if (e.target.value) setMadreInput(e.target.value);
+                      }}
+                      className="w-full rounded-lg border border-rose-200 bg-white px-2 py-1 text-[11px]"
+                    >
+                      <option value="">Elegir vaca del censo...</option>
+                      {estado.animales
+                        .filter((a) => a.sexo === 'H' && a.id !== animal.id)
+                        .map((h) => (
+                          <option key={h.id} value={normalizarCrotal(h.crotal)}>
+                            #{h.numeroCorto} {h.nombre ? `(${h.nombre})` : ''}
+                          </option>
+                        ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={madreInput}
+                      onChange={(e) => setMadreInput(e.target.value.toUpperCase())}
+                      placeholder="Crotal madre (ES...)"
+                      className="w-full rounded-lg border border-rose-200 bg-white px-2 py-1 font-mono text-[11px]"
+                    />
+                    <div className="flex gap-1">
+                      <button
+                        type="submit"
+                        className="flex-1 rounded-lg bg-[#0f3d2e] px-2 py-1 text-[11px] font-bold text-white"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditandoMadre(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                ) : madre ? (
                   <button
                     type="button"
-                    onClick={() => onSeleccionarOtroAnimal(madre)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSeleccionarOtroAnimal(madre);
+                    }}
                     className="block text-left font-bold text-emerald-900 hover:underline"
                   >
                     #{madre.numeroCorto} {madre.nombre ? `(${madre.nombre})` : ''} →
@@ -963,14 +1062,90 @@ export function DrawerFichaAnimal({
                 )}
               </div>
 
-              {/* Rama Paterna */}
-              <div className="space-y-1.5 rounded-xl border border-sky-200/80 bg-sky-50/40 p-2.5">
-                <span className="text-[10px] font-extrabold uppercase text-sky-900">
-                  Padre / Toro
-                </span>
-                <p className="font-bold text-[#0f1f18]">
-                  {animal.padreNombre || animal.crotalPadre || 'No registrado'}
-                </p>
+              {/* Rama Paterna (clic para registrar o editar) */}
+              <div
+                onClick={() => {
+                  if (!editandoPadre && onActualizarGenealogia) setEditandoPadre(true);
+                }}
+                className={`space-y-1.5 rounded-xl border border-sky-200/80 bg-sky-50/40 p-2.5 ${
+                  !editandoPadre && onActualizarGenealogia
+                    ? 'cursor-pointer transition hover:border-sky-400'
+                    : ''
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-extrabold uppercase text-sky-900">
+                    Padre / Toro
+                  </span>
+                  {onActualizarGenealogia && !editandoPadre && (
+                    <span className="text-[10px] font-bold text-sky-800 underline">
+                      {animal.padreNombre || animal.crotalPadre ? 'Editar' : '+ Registrar'}
+                    </span>
+                  )}
+                </div>
+
+                {editandoPadre ? (
+                  <form
+                    onClick={(e) => e.stopPropagation()}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const val = padreInput.trim();
+                      const esCrotal = /^[A-Z]{2}\d{10,12}$/i.test(val.replace(/[\s-]/g, ''));
+                      onActualizarGenealogia?.(animal.id, {
+                        crotalMadre: animal.crotalMadre,
+                        crotalPadre: esCrotal ? val.toUpperCase() : undefined,
+                        padreNombre: esCrotal ? undefined : val || undefined,
+                      });
+                      setEditandoPadre(false);
+                    }}
+                    className="space-y-1.5"
+                  >
+                    {estado.animales.some((a) => a.sexo === 'M' && a.id !== animal.id) && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) setPadreInput(e.target.value);
+                        }}
+                        className="w-full rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px]"
+                      >
+                        <option value="">Elegir toro del censo...</option>
+                        {estado.animales
+                          .filter((a) => a.sexo === 'M' && a.id !== animal.id)
+                          .map((m) => (
+                            <option key={m.id} value={m.nombre || m.crotal}>
+                              #{m.numeroCorto} {m.nombre ? `(${m.nombre})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                    <input
+                      type="text"
+                      value={padreInput}
+                      onChange={(e) => setPadreInput(e.target.value)}
+                      placeholder="Nombre toro IA o crotal..."
+                      className="w-full rounded-lg border border-sky-200 bg-white px-2 py-1 text-[11px]"
+                    />
+                    <div className="flex gap-1">
+                      <button
+                        type="submit"
+                        className="flex-1 rounded-lg bg-[#0f3d2e] px-2 py-1 text-[11px] font-bold text-white"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditandoPadre(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="font-bold text-[#0f1f18]">
+                    {animal.padreNombre || animal.crotalPadre || 'No registrado'}
+                  </p>
+                )}
                 {(pedigri.padre?.madre || pedigri.padre?.padre) && (
                   <div className="border-t border-sky-200/60 pt-1.5 text-[10px] text-[#52655c]">
                     {pedigri.padre.madre && <p>Abuela P: {pedigri.padre.madre.etiqueta}</p>}
