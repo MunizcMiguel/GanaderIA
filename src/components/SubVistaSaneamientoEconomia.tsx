@@ -1,6 +1,8 @@
 import {
+  Download,
   Euro,
   FileScan,
+  Pencil,
   Pill,
   Plus,
   ShieldCheck,
@@ -12,7 +14,6 @@ import { useMemo, useState } from 'react';
 import { formatearFechaEs, hoyIso, sumarDiasIso } from '../domain/fechas';
 import {
   calcularEvolucionMensual,
-  calcularResumenEconomico,
   CAMPANAS_SANEAMIENTO_META,
   CATEGORIAS_ECONOMICAS_META,
 } from '../domain/gestionAvanzada';
@@ -456,13 +457,21 @@ export function SubVistaEconomiaEvolucion({
   estado,
   hoy,
   onAnadirMovimientoEconomico,
+  onEditarMovimientoEconomico,
+  onEliminarMovimientoEconomico,
 }: {
   estado: EstadoGanaderia;
   hoy: string;
   onAnadirMovimientoEconomico: (mov: MovimientoEconomico) => void;
+  onEditarMovimientoEconomico?: (mov: MovimientoEconomico) => void;
+  onEliminarMovimientoEconomico?: (movId: string) => void;
 }) {
   const evolucion = useMemo(() => calcularEvolucionMensual(estado, 6, hoy), [estado, hoy]);
-  const resumen = useMemo(() => calcularResumenEconomico(estado), [estado]);
+
+  const [periodo, setPeriodo] = useState<'MES' | 'TRIMESTRE' | 'TODO'>('TODO');
+  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | TipoMovimientoEconomico>('TODOS');
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [tipo, setTipo] = useState<TipoMovimientoEconomico>('GASTO');
   const [categoria, setCategoria] = useState<CategoriaEconomica>('ALIMENTACION');
@@ -471,41 +480,190 @@ export function SubVistaEconomiaEvolucion({
   const [fecha, setFecha] = useState(hoyIso());
   const [contraparte, setContraparte] = useState('');
 
-  const handleCrear = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = Number(importe.replace(',', '.'));
-    if (!concepto.trim() || Number.isNaN(num) || num <= 0) return;
-    onAnadirMovimientoEconomico({
-      id: `eco-${Date.now()}`,
-      fecha,
-      tipo,
-      categoria,
-      concepto: concepto.trim(),
-      importeEur: num,
-      contraparte: contraparte.trim() || undefined,
-    });
+  const fechaCortePeriodo = useMemo(() => {
+    if (periodo === 'MES') return `${hoy.slice(0, 7)}-01`;
+    if (periodo === 'TRIMESTRE') return sumarDiasIso(hoy, -90);
+    return '';
+  }, [periodo, hoy]);
+
+  const movsPeriodo = useMemo(() => {
+    const lista = estado.movimientosEconomicos || [];
+    return fechaCortePeriodo ? lista.filter((m) => m.fecha >= fechaCortePeriodo) : lista;
+  }, [estado.movimientosEconomicos, fechaCortePeriodo]);
+
+  const resumen = useMemo(() => {
+    let totalIngresosEur = 0;
+    let totalGastosEur = 0;
+    for (const m of movsPeriodo) {
+      if (m.tipo === 'INGRESO') totalIngresosEur += m.importeEur;
+      else totalGastosEur += m.importeEur;
+    }
+    return {
+      totalIngresosEur: Math.round(totalIngresosEur * 100) / 100,
+      totalGastosEur: Math.round(totalGastosEur * 100) / 100,
+      saldoNetoEur: Math.round((totalIngresosEur - totalGastosEur) * 100) / 100,
+    };
+  }, [movsPeriodo]);
+
+  const desgloseCategorias = useMemo(() => {
+    const mapa = new Map<string, { categoria: CategoriaEconomica; tipo: TipoMovimientoEconomico; total: number }>();
+    for (const m of movsPeriodo) {
+      if (filtroTipo !== 'TODOS' && m.tipo !== filtroTipo) continue;
+      const key = `${m.tipo}-${m.categoria}`;
+      const prev = mapa.get(key);
+      if (prev) prev.total += m.importeEur;
+      else mapa.set(key, { categoria: m.categoria, tipo: m.tipo, total: m.importeEur });
+    }
+    const items = Array.from(mapa.values()).sort((a, b) => b.total - a.total);
+    const maxCat = Math.max(1, ...items.map((i) => i.total));
+    const sumaTotal = Math.max(1, items.reduce((acc, i) => acc + i.total, 0));
+    return { items, maxCat, sumaTotal };
+  }, [movsPeriodo, filtroTipo]);
+
+  const limpiarForm = () => {
+    setEditandoId(null);
     setConcepto('');
     setImporte('');
     setContraparte('');
+    setFecha(hoyIso());
+    setMostrarForm(false);
   };
 
-  const maxEventosMes = Math.max(
-    1,
-    ...evolucion.map((p) => Math.max(p.nacimientos, p.bajas + p.ventas)),
+  const iniciarEdicion = (m: MovimientoEconomico) => {
+    setEditandoId(m.id);
+    setTipo(m.tipo);
+    setCategoria(m.categoria);
+    setConcepto(m.concepto);
+    setImporte(String(m.importeEur));
+    setFecha(m.fecha);
+    setContraparte(m.contraparte || '');
+    setMostrarForm(true);
+  };
+
+  const handleGuardar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const num = Number(importe.replace(',', '.'));
+    if (!concepto.trim() || Number.isNaN(num) || num <= 0) return;
+
+    if (editandoId && onEditarMovimientoEconomico) {
+      onEditarMovimientoEconomico({
+        id: editandoId,
+        fecha,
+        tipo,
+        categoria,
+        concepto: concepto.trim(),
+        importeEur: num,
+        contraparte: contraparte.trim() || undefined,
+      });
+    } else {
+      onAnadirMovimientoEconomico({
+        id: `eco-${Date.now()}`,
+        fecha,
+        tipo,
+        categoria,
+        concepto: concepto.trim(),
+        importeEur: num,
+        contraparte: contraparte.trim() || undefined,
+      });
+    }
+    limpiarForm();
+  };
+
+  const movsOrdenados = useMemo(
+    () =>
+      movsPeriodo
+        .filter((m) => (filtroTipo === 'TODOS' ? true : m.tipo === filtroTipo))
+        .sort((a, b) => b.fecha.localeCompare(a.fecha)),
+    [movsPeriodo, filtroTipo],
   );
+
+  const exportarCsvGestoria = () => {
+    const cab = ['Fecha', 'Tipo', 'Categoria', 'Concepto', 'Importe_EUR', 'Proveedor_Comprador'];
+    const filas = movsOrdenados.map((m) => [
+      m.fecha,
+      m.tipo,
+      CATEGORIAS_ECONOMICAS_META[m.categoria].etiqueta,
+      `"${m.concepto.replace(/"/g, '""')}"`,
+      m.tipo === 'INGRESO' ? m.importeEur.toFixed(2) : `-${m.importeEur.toFixed(2)}`,
+      `"${(m.contraparte || '').replace(/"/g, '""')}"`,
+    ]);
+    const csv = `\uFEFF${[cab.join(';'), ...filas.map((f) => f.join(';'))].join('\n')}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `economia-${hoy}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const maxEurMes = Math.max(100, ...evolucion.map((p) => Math.max(p.ingresosEur, p.gastosEur)));
-  const movsOrdenados = [...(estado.movimientosEconomicos || [])].sort((a, b) =>
-    b.fecha.localeCompare(a.fecha),
-  );
 
   return (
     <div className="space-y-5">
+      {/* Filtros de periodo y tipo + exportar CSV */}
+      <div className="card-surface flex flex-wrap items-center justify-between gap-2.5 rounded-2xl p-3.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              { id: 'MES', label: 'Este mes' },
+              { id: 'TRIMESTRE', label: 'Últimos 90d' },
+              { id: 'TODO', label: 'Todo' },
+            ] as const
+          ).map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPeriodo(p.id)}
+              className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition ${
+                periodo === p.id
+                  ? 'bg-[#0f3d2e] text-white'
+                  : 'bg-[#f8faf6] text-[#4a5d54] hover:bg-emerald-50'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              { id: 'TODOS', label: 'Todos' },
+              { id: 'INGRESO', label: 'Ingresos' },
+              { id: 'GASTO', label: 'Gastos' },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFiltroTipo(f.id)}
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
+                filtroTipo === f.id
+                  ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
+                  : 'border-[#dce4d6] bg-white text-[#52655c]'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={exportarCsvGestoria}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3 py-1.5 text-xs font-extrabold text-[#0f3d2e] hover:bg-[#f8faf6]"
+          >
+            <Download className="h-3.5 w-3.5" />
+            CSV Gestoría
+          </button>
+        </div>
+      </div>
+
       {/* KPIs Económicos */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <div className="card-surface rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-emerald-800">
             <TrendingUp className="h-4 w-4" />
-            Ingresos registrados
+            Ingresos ({periodo === 'MES' ? 'mes' : periodo === 'TRIMESTRE' ? '90d' : 'total'})
           </div>
           <p className="mt-1.5 font-mono text-2xl font-extrabold text-emerald-800">
             +{resumen.totalIngresosEur.toLocaleString('es-ES')} €
@@ -514,7 +672,7 @@ export function SubVistaEconomiaEvolucion({
         <div className="card-surface rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-red-700">
             <TrendingDown className="h-4 w-4" />
-            Gastos registrados
+            Gastos ({periodo === 'MES' ? 'mes' : periodo === 'TRIMESTRE' ? '90d' : 'total'})
           </div>
           <p className="mt-1.5 font-mono text-2xl font-extrabold text-red-700">
             -{resumen.totalGastosEur.toLocaleString('es-ES')} €
@@ -536,43 +694,49 @@ export function SubVistaEconomiaEvolucion({
         </div>
       </div>
 
-      {/* Gráficos Mensuales (Nacimientos/Bajas-Ventas y Balance €) */}
+      {/* Gráficos: Desglose por Categoría + Ingresos vs Gastos Mensuales */}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="card-surface space-y-3 rounded-2xl p-5">
           <h4 className="text-sm font-extrabold text-[#0f1f18]">
-            Evolución del Rebaño (Últimos 6 meses)
+            Desglose por Categoría ({movsOrdenados.length} apuntes)
           </h4>
-          <div className="flex items-end justify-between gap-2 pt-3">
-            {evolucion.map((p) => (
-              <div key={p.mesKey} className="flex flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-28 w-full items-end justify-center gap-1">
-                  <div
-                    title={`Nacimientos: ${p.nacimientos}`}
-                    className="w-4 rounded-t-md bg-emerald-600 transition-all"
-                    style={{
-                      height: `${Math.max(6, Math.round((p.nacimientos / maxEventosMes) * 100))}%`,
-                    }}
-                  />
-                  <div
-                    title={`Bajas/Ventas: ${p.bajas + p.ventas}`}
-                    className="w-4 rounded-t-md bg-amber-500 transition-all"
-                    style={{
-                      height: `${Math.max(6, Math.round(((p.bajas + p.ventas) / maxEventosMes) * 100))}%`,
-                    }}
-                  />
-                </div>
-                <span className="font-mono text-[11px] font-bold text-[#52655c]">{p.etiqueta}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-4 text-[11px] font-semibold text-[#52655c]">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600" /> Nacimientos
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-amber-500" /> Bajas y Ventas
-            </span>
-          </div>
+          {desgloseCategorias.items.length === 0 ? (
+            <p className="py-6 text-center text-xs text-[#52655c]">
+              No hay apuntes económicos en este periodo/filtro.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {desgloseCategorias.items.slice(0, 6).map((item) => {
+                const pct = Math.round((item.total / desgloseCategorias.sumaTotal) * 100);
+                const ancho = Math.max(8, Math.round((item.total / desgloseCategorias.maxCat) * 100));
+                return (
+                  <div key={`${item.tipo}-${item.categoria}`} className="space-y-1 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-[#0f1f18]">
+                        {CATEGORIAS_ECONOMICAS_META[item.categoria].etiqueta}
+                      </span>
+                      <span
+                        className={`font-mono font-extrabold ${
+                          item.tipo === 'INGRESO' ? 'text-emerald-800' : 'text-red-700'
+                        }`}
+                      >
+                        {item.tipo === 'INGRESO' ? '+' : '-'}
+                        {item.total.toLocaleString('es-ES')} € ({pct}%)
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#edf1e9]">
+                      <div
+                        className={`h-full rounded-full ${
+                          item.tipo === 'INGRESO' ? 'bg-emerald-600' : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${ancho}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="card-surface space-y-3 rounded-2xl p-5">
@@ -613,98 +777,145 @@ export function SubVistaEconomiaEvolucion({
         </div>
       </div>
 
-      {/* Formulario rápido + Listado de apuntes económicos */}
+      {/* Formulario colapsable + Listado editable de apuntes económicos */}
       <section className="card-surface space-y-4 rounded-2xl p-5">
-        <h4 className="text-sm font-extrabold text-[#0f1f18]">
-          Registrar Ingreso o Gasto de Explotación
-        </h4>
-        <form onSubmit={handleCrear} className="grid gap-2.5 text-xs sm:grid-cols-6">
-          <select
-            value={categoria}
-            onChange={(e) => {
-              const cat = e.target.value as CategoriaEconomica;
-              setCategoria(cat);
-              setTipo(CATEGORIAS_ECONOMICAS_META[cat].tipoDefecto);
-            }}
-            className="rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 font-bold sm:col-span-2"
-          >
-            {(Object.keys(CATEGORIAS_ECONOMICAS_META) as CategoriaEconomica[]).map((k) => (
-              <option key={k} value={k}>
-                {CATEGORIAS_ECONOMICAS_META[k].etiqueta}
-              </option>
-            ))}
-          </select>
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoMovimientoEconomico)}
-            className="rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 font-bold"
-          >
-            <option value="INGRESO">Ingreso (+)</option>
-            <option value="GASTO">Gasto (-)</option>
-          </select>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            placeholder="Importe € *"
-            value={importe}
-            onChange={(e) => setImporte(e.target.value)}
-            className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 font-mono font-bold"
-          />
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 sm:col-span-2"
-          />
-          <input
-            type="text"
-            required
-            placeholder="Concepto (ej. Factura pienso abril, Liquidación leche...)"
-            value={concepto}
-            onChange={(e) => setConcepto(e.target.value)}
-            className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 sm:col-span-3"
-          />
-          <input
-            type="text"
-            placeholder="Proveedor / Comprador (opcional)"
-            value={contraparte}
-            onChange={(e) => setContraparte(e.target.value)}
-            className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 sm:col-span-2"
-          />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-sm font-extrabold text-[#0f1f18]">
+            Movimientos de Explotación ({movsOrdenados.length})
+          </h4>
           <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#0f3d2e] px-3 py-2 font-bold text-white hover:bg-[#175742]"
+            type="button"
+            onClick={() => {
+              if (mostrarForm) limpiarForm();
+              else setMostrarForm(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-extrabold text-white shadow-xs hover:bg-[#175742]"
           >
-            <Plus className="h-3.5 w-3.5 text-amber-300" />
-            Apuntar
+            <Plus className="h-4 w-4 text-amber-300" />
+            {mostrarForm ? 'Cerrar formulario' : 'Nuevo apunte'}
           </button>
-        </form>
+        </div>
+
+        {mostrarForm && (
+          <form
+            onSubmit={handleGuardar}
+            className="grid gap-2.5 rounded-2xl border border-emerald-200 bg-[#f8faf6] p-3.5 text-xs sm:grid-cols-6"
+          >
+            <select
+              value={categoria}
+              onChange={(e) => {
+                const cat = e.target.value as CategoriaEconomica;
+                setCategoria(cat);
+                setTipo(CATEGORIAS_ECONOMICAS_META[cat].tipoDefecto);
+              }}
+              className="rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 font-bold sm:col-span-2"
+            >
+              {(Object.keys(CATEGORIAS_ECONOMICAS_META) as CategoriaEconomica[]).map((k) => (
+                <option key={k} value={k}>
+                  {CATEGORIAS_ECONOMICAS_META[k].etiqueta}
+                </option>
+              ))}
+            </select>
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoMovimientoEconomico)}
+              className="rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 font-bold"
+            >
+              <option value="INGRESO">Ingreso (+)</option>
+              <option value="GASTO">Gasto (-)</option>
+            </select>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              placeholder="Importe € *"
+              value={importe}
+              onChange={(e) => setImporte(e.target.value)}
+              className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 font-mono font-bold"
+            />
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 sm:col-span-2"
+            />
+            <input
+              type="text"
+              required
+              placeholder="Concepto (ej. Factura pienso abril, Liquidación leche...)"
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 sm:col-span-3"
+            />
+            <input
+              type="text"
+              placeholder="Proveedor / Comprador (opcional)"
+              value={contraparte}
+              onChange={(e) => setContraparte(e.target.value)}
+              className="rounded-xl border border-[#dce4d6] bg-white px-3 py-2 sm:col-span-2"
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#0f3d2e] px-3 py-2 font-bold text-white hover:bg-[#175742]"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-300" />
+              {editandoId ? 'Guardar' : 'Apuntar'}
+            </button>
+          </form>
+        )}
 
         <div className="space-y-1.5">
-          {movsOrdenados.map((m) => (
-            <div
-              key={m.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e6ece2] bg-[#f8faf6] px-3.5 py-2.5 text-xs"
-            >
-              <div>
-                <p className="font-bold text-[#0f1f18]">{m.concepto}</p>
-                <p className="text-[11px] text-[#52655c]">
-                  {formatearFechaEs(m.fecha)} · {CATEGORIAS_ECONOMICAS_META[m.categoria].etiqueta}
-                  {m.contraparte ? ` · ${m.contraparte}` : ''}
-                </p>
-              </div>
-              <span
-                className={`font-mono text-sm font-extrabold ${
-                  m.tipo === 'INGRESO' ? 'text-emerald-800' : 'text-red-700'
-                }`}
+          {movsOrdenados.length === 0 ? (
+            <p className="rounded-xl bg-[#f8faf6] py-6 text-center text-xs text-[#52655c]">
+              No hay apuntes que coincidan con este filtro.
+            </p>
+          ) : (
+            movsOrdenados.map((m) => (
+              <div
+                key={m.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e6ece2] bg-[#f8faf6] px-3.5 py-2.5 text-xs"
               >
-                {m.tipo === 'INGRESO' ? '+' : '-'}
-                {m.importeEur.toLocaleString('es-ES')} €
-              </span>
-            </div>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[#0f1f18]">{m.concepto}</p>
+                  <p className="text-[11px] text-[#52655c]">
+                    {formatearFechaEs(m.fecha)} · {CATEGORIAS_ECONOMICAS_META[m.categoria].etiqueta}
+                    {m.contraparte ? ` · ${m.contraparte}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`font-mono text-sm font-extrabold ${
+                      m.tipo === 'INGRESO' ? 'text-emerald-800' : 'text-red-700'
+                    }`}
+                  >
+                    {m.tipo === 'INGRESO' ? '+' : '-'}
+                    {m.importeEur.toLocaleString('es-ES')} €
+                  </span>
+                  {onEditarMovimientoEconomico && (
+                    <button
+                      type="button"
+                      aria-label={`Editar ${m.concepto}`}
+                      onClick={() => iniciarEdicion(m)}
+                      className="rounded-lg p-1.5 text-[#52655c] hover:bg-emerald-100 hover:text-[#0f3d2e]"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {onEliminarMovimientoEconomico && (
+                    <button
+                      type="button"
+                      aria-label={`Eliminar ${m.concepto}`}
+                      onClick={() => onEliminarMovimientoEconomico(m.id)}
+                      className="rounded-lg p-1.5 text-[#70857a] hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </div>

@@ -1882,9 +1882,43 @@ export default function App() {
               />
             }
             onAnadirMovimientoEconomico={anadirMovimientoEconomico}
+            onEditarMovimientoEconomico={(movEditado) => {
+              setEstado((prev) => ({
+                ...prev,
+                movimientosEconomicos: (prev.movimientosEconomicos || []).map((m) =>
+                  m.id === movEditado.id ? movEditado : m,
+                ),
+              }));
+              mostrarToast('Apunte económico actualizado.');
+            }}
+            onEliminarMovimientoEconomico={(movId) => {
+              setEstado((prev) => ({
+                ...prev,
+                movimientosEconomicos: (prev.movimientosEconomicos || []).filter(
+                  (m) => m.id !== movId,
+                ),
+              }));
+              mostrarToast('Apunte económico eliminado.');
+            }}
             onAnadirDocumento={(doc: DocumentoExplotacion) => {
               setEstado((prev) => ({ ...prev, documentos: [doc, ...prev.documentos] }));
               mostrarToast('Documento guardado en la Carpeta de Inspección.');
+            }}
+            onEditarDocumento={(docEditado: DocumentoExplotacion) => {
+              setEstado((prev) => ({
+                ...prev,
+                documentos: prev.documentos.map((d) =>
+                  d.id === docEditado.id ? docEditado : d,
+                ),
+              }));
+              mostrarToast('Documento actualizado.');
+            }}
+            onEliminarDocumento={(docId: string) => {
+              setEstado((prev) => ({
+                ...prev,
+                documentos: prev.documentos.filter((d) => d.id !== docId),
+              }));
+              mostrarToast('Documento eliminado.');
             }}
             onAbrirEscanerOcr={() => setModalOcr(true)}
             onAbrirLibrosOficiales={(libro = 'EXPLOTACION') => setModalLibros(libro)}
