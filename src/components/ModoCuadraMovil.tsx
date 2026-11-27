@@ -79,6 +79,8 @@ interface Props {
       | 'salidas'
       | 'analitica',
   ) => void;
+  tabExterno?: TabCuadra;
+  ocultarNavInferior?: boolean;
 }
 
 export function ModoCuadraMovil({
@@ -95,8 +97,11 @@ export function ModoCuadraMovil({
   onAbrirConfig,
   onRegistrarIncidencia,
   onCambiarAModoOficina,
+  tabExterno,
+  ocultarNavInferior,
 }: Props) {
-  const [tab, setTab] = useState<TabCuadra>('hoy');
+  const [tabInterno, setTab] = useState<TabCuadra>('hoy');
+  const tab = tabExterno ?? tabInterno;
   const [busquedaRapida, setBusquedaRapida] = useState('');
   const [filtroVacas, setFiltroVacas] = useState<'ACTIVAS' | 'SUPRESION' | 'CROTAL' | 'REVISAR'>(
     'ACTIVAS',
@@ -644,43 +649,45 @@ export function ModoCuadraMovil({
         )}
       </main>
 
-      {/* Barra inferior limpia de 4 pestañas (sin scroll horizontal) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-[#dce4d6] bg-white/95 backdrop-blur-xs">
-        {(
-          [
-            ['hoy', 'Hoy', Home, alertasUrgentes.length || undefined],
-            ['vacas', 'Vacas', ClipboardList, undefined],
-            ['agenda', 'Agenda', Calendar, undefined],
-            ['mas', 'Más', LayoutGrid, numPendientes || undefined],
-          ] as const
-        ).map(([id, label, Icono, badge]) => {
-          const activo = tab === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold transition ${
-                activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
-              }`}
-            >
-              <span
-                className={`flex h-7 w-11 items-center justify-center rounded-xl transition ${
-                  activo ? 'bg-emerald-100 text-[#0f3d2e]' : ''
+      {/* Barra inferior de 4 pestañas solo si no se usa el menú unificado externo */}
+      {!ocultarNavInferior && (
+        <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-[#dce4d6] bg-white/95 backdrop-blur-xs">
+          {(
+            [
+              ['hoy', 'Hoy', Home, alertasUrgentes.length || undefined],
+              ['vacas', 'Vacas', ClipboardList, undefined],
+              ['agenda', 'Agenda', Calendar, undefined],
+              ['mas', 'Más', LayoutGrid, numPendientes || undefined],
+            ] as const
+          ).map(([id, label, Icono, badge]) => {
+            const activo = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold transition ${
+                  activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
                 }`}
               >
-                <Icono className="h-4 w-4" />
-              </span>
-              <span>{label}</span>
-              {badge !== undefined && (
-                <span className="absolute right-4 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 font-mono text-[9px] font-bold text-white">
-                  {badge}
+                <span
+                  className={`flex h-7 w-11 items-center justify-center rounded-xl transition ${
+                    activo ? 'bg-emerald-100 text-[#0f3d2e]' : ''
+                  }`}
+                >
+                  <Icono className="h-4 w-4" />
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+                <span>{label}</span>
+                {badge !== undefined && (
+                  <span className="absolute right-4 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 font-mono text-[9px] font-bold text-white">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Hoja inferior rápida de Incidencia / Mamitis 4 cuarterones */}
       {modalIncidenciaRapida && (

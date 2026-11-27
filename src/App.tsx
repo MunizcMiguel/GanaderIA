@@ -1307,6 +1307,10 @@ export default function App() {
             if (destino) setPestana(destino);
             cambiarModoPreferido('OFICINA');
           }}
+          tabExterno={
+            pestana === 'censo' ? 'vacas' : pestana === 'calendario' ? 'agenda' : 'hoy'
+          }
+          ocultarNavInferior
         />
       ) : (
         <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
@@ -1653,7 +1657,17 @@ export default function App() {
         )}
       </main>
 
-      {/* Navegación inferior móvil ergonómica (scroll horizontal suave para 8 pestañas) */}
+      {/* Botón flotante persistente (FAB) para Dictar / OCR / Nacimiento / Baja */}
+      <FabAccionesCuadra
+        onDictarVoz={() => setModalVoz(true)}
+        onEscanerOcr={() => setModalOcr(true)}
+        onRegistrarNacimiento={() => setModalNacimiento(true)}
+        onRegistrarBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
+      />
+        </div>
+      )}
+
+      {/* Menú inferior unificado en móvil (tanto en Modo Cuadra como en Modo Oficina) */}
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-[#e1e7dc] bg-white/95 backdrop-blur-xs lg:hidden">
         {navItems.map((item) => {
           const Icono = item.icono;
@@ -1662,7 +1676,17 @@ export default function App() {
             <button
               key={item.id}
               type="button"
-              onClick={() => setPestana(item.id)}
+              onClick={() => {
+                setPestana(item.id);
+                if (
+                  usarModoCuadra &&
+                  item.id !== 'panel' &&
+                  item.id !== 'censo' &&
+                  item.id !== 'calendario'
+                ) {
+                  cambiarModoPreferido('OFICINA');
+                }
+              }}
               className={`relative flex min-w-[66px] flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
                 activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
               }`}
@@ -1684,16 +1708,6 @@ export default function App() {
           );
         })}
       </nav>
-
-      {/* Botón flotante persistente (FAB) para Dictar / OCR / Nacimiento / Baja */}
-      <FabAccionesCuadra
-        onDictarVoz={() => setModalVoz(true)}
-        onEscanerOcr={() => setModalOcr(true)}
-        onRegistrarNacimiento={() => setModalNacimiento(true)}
-        onRegistrarBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
-      />
-        </div>
-      )}
 
       {/* Modales y Drawer global (desde Calendario) */}
       {drawerAnimalGlobalId &&
