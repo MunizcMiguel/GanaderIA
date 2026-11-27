@@ -140,13 +140,14 @@ export default function App() {
   const [modalLibros, setModalLibros] = useState<'EXPLOTACION' | 'TRATAMIENTOS' | null>(null);
   const [modalVoz, setModalVoz] = useState(false);
   const [modalOcr, setModalOcr] = useState(false);
+  const [ocrDesdeBotiquin, setOcrDesdeBotiquin] = useState(false);
   const [modalBajaAnimal, setModalBajaAnimal] = useState<UnidadGanadera | 'SIN_PRESELECCION' | null>(
     null,
   );
   const [tipoBajaInicial, setTipoBajaInicial] = useState<
     'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO' | undefined
   >(undefined);
-  const [modalTratamiento, setModalTratamiento] = useState<UnidadGanadera | null>(null);
+  const [modalTratamiento, setModalTratamiento] = useState<UnidadGanadera | 'MULTI' | null>(null);
   const [modalConfig, setModalConfig] = useState(false);
 
   useEffect(() => {
@@ -615,7 +616,8 @@ export default function App() {
   };
 
   const guardarTratamiento = (datos: {
-    animalId: string;
+    animalIds: string[];
+    fecha?: string;
     medicamento: string;
     dosis?: string;
     afeccion?: string;
@@ -628,22 +630,27 @@ export default function App() {
     diasCarne: number;
     costeEur?: number;
   }) => {
-    const hoy = hoyIso();
-    const animal = estado.animales.find((a) => a.id === datos.animalId);
-    if (!animal) return;
-    const finLeche = datos.diasLeche > 0 ? sumarDiasIso(hoy, datos.diasLeche) : undefined;
-    const finCarne = datos.diasCarne > 0 ? sumarDiasIso(hoy, datos.diasCarne) : undefined;
+    const fechaTrat = datos.fecha || hoyIso();
+    const seleccionados = estado.animales.filter((a) => datos.animalIds.includes(a.id));
+    if (seleccionados.length === 0) return;
+    const idsSet = new Set(seleccionados.map((a) => a.id));
+    const resumenAnimales =
+      seleccionados.length === 1
+        ? `#${seleccionados[0].numeroCorto}`
+        : `${seleccionados.length} vacas`;
+    const finLeche = datos.diasLeche > 0 ? sumarDiasIso(fechaTrat, datos.diasLeche) : undefined;
+    const finCarne = datos.diasCarne > 0 ? sumarDiasIso(fechaTrat, datos.diasCarne) : undefined;
 
     setEstado((prev) => ({
       ...prev,
       animales: prev.animales.map((a) =>
-        a.id === datos.animalId
+        idsSet.has(a.id)
           ? {
               ...a,
               supresionActiva: {
                 medicamento: datos.medicamento,
                 recetaPresvet: datos.recetaPresvet || undefined,
-                fechaInicio: hoy,
+                fechaInicio: fechaTrat,
                 finSupresionLeche: finLeche,
                 finSupresionCarne: finCarne,
               },
@@ -653,10 +660,10 @@ export default function App() {
       tratamientos: [
         {
           id: `trat-${Date.now()}`,
-          animalIds: [animal.id],
-          crotales: [animal.crotal],
-          fechaPrescripcion: hoy,
-          fechaAdministracion: hoy,
+          animalIds: seleccionados.map((a) => a.id),
+          crotales: seleccionados.map((a) => a.crotal),
+          fechaPrescripcion: fechaTrat,
+          fechaAdministracion: fechaTrat,
           recetaPresvet: datos.recetaPresvet || undefined,
           veterinario: datos.veterinario,
           aplicadoPor: datos.aplicadoPor,
@@ -678,9 +685,9 @@ export default function App() {
             {
               id: `doc-rec-${Date.now()}`,
               categoria: 'RECETA_PRESVET',
-              titulo: `Receta PRESVET — #${animal.numeroCorto} (${datos.medicamento})`,
-              fechaEmision: hoy,
-              animalCrotal: animal.crotal,
+              titulo: `Receta PRESVET — ${resumenAnimales} (${datos.medicamento})`,
+              fechaEmision: fechaTrat,
+              animalCrotal: seleccionados[0].crotal,
               referencia: datos.recetaPresvet,
               estado: 'VIGENTE',
             },
@@ -691,13 +698,13 @@ export default function App() {
         ? [
             {
               id: `eco-trat-${Date.now()}`,
-              fecha: hoy,
+              fecha: fechaTrat,
               tipo: 'GASTO',
               categoria: 'MEDICAMENTOS',
-              concepto: `${datos.medicamento} — #${animal.numeroCorto}`,
+              concepto: `${datos.medicamento} — ${resumenAnimales}`,
               importeEur: datos.costeEur,
-              animalId: animal.id,
-              crotal: animal.crotal,
+              animalId: seleccionados.length === 1 ? seleccionados[0].id : undefined,
+              crotal: seleccionados.length === 1 ? seleccionados[0].crotal : undefined,
               contraparte: datos.proveedor,
             },
             ...(prev.movimientosEconomicos || []),
@@ -705,7 +712,7 @@ export default function App() {
         : prev.movimientosEconomicos,
     }));
     setModalTratamiento(null);
-    mostrarToast(`Tratamiento guardado en Libro Oficial y bloqueo activado en #${animal.numeroCorto}.`);
+    mostrarToast(`Tratamiento guardado en Libro Oficial y actualizado en ${resumenAnimales}.`);
   };
 
   const registrarSalidaLote = (payload: {
@@ -1075,61 +1082,123 @@ export default function App() {
   };
 
   const guardarRecetaOcr = (datos: AccionGuardarRecetaOcr) => {
-    const animal = estado.animales.find((a) => a.id === datos.animalId);
-    if (!animal) return;
-    setEstado((prev) => ({
-      ...prev,
-      animales: prev.animales.map((a) =>
-        a.id === datos.animalId
-          ? {
-              ...a,
-              supresionActiva: {
-                medicamento: datos.medicamento,
-                recetaPresvet: datos.recetaPresvet || undefined,
-                fechaInicio: datos.fechaEmision,
-                finSupresionLeche:
-                  datos.diasLeche > 0 ? sumarDiasIso(datos.fechaEmision, datos.diasLeche) : undefined,
-                finSupresionCarne:
-                  datos.diasCarne > 0 ? sumarDiasIso(datos.fechaEmision, datos.diasCarne) : undefined,
+    const seleccionados = estado.animales.filter((a) => datos.animalIds.includes(a.id));
+    const idsSet = new Set(seleccionados.map((a) => a.id));
+    const finLeche =
+      datos.diasLeche > 0 ? sumarDiasIso(datos.fechaEmision, datos.diasLeche) : undefined;
+    const finCarne =
+      datos.diasCarne > 0 ? sumarDiasIso(datos.fechaEmision, datos.diasCarne) : undefined;
+    const resumenAnimales =
+      seleccionados.length === 0
+        ? 'Botiquín'
+        : seleccionados.length === 1
+          ? `#${seleccionados[0].numeroCorto}`
+          : `${seleccionados.length} vacas`;
+
+    setEstado((prev) => {
+      const botiquinActual = prev.botiquin || [];
+      const yaExisteMed = botiquinActual.some(
+        (m) => m.nombre.trim().toLowerCase() === datos.medicamento.trim().toLowerCase(),
+      );
+      const nuevoBotiquin =
+        datos.anadirABotiquin && !yaExisteMed
+          ? [
+              {
+                id: `med-ocr-${Date.now()}`,
+                nombre: datos.medicamento,
+                dosisHabitual: datos.dosisHabitual,
+                diasSupresionCarne: datos.diasCarne,
+                diasSupresionLeche: datos.diasLeche,
               },
-            }
-          : a,
-      ),
-      documentos: [
-        {
-          id: `doc-ocr-rec-${Date.now()}`,
-          categoria: 'RECETA_PRESVET',
-          titulo: `Receta PRESVET (OCR) — #${animal.numeroCorto} (${datos.medicamento})`,
-          fechaEmision: datos.fechaEmision,
-          animalCrotal: animal.crotal,
-          referencia: datos.recetaPresvet || undefined,
-          estado: 'VIGENTE',
-          notas: `Leche: ${datos.diasLeche}d · Carne: ${datos.diasCarne}d${
-            datos.veterinario ? ` · ${datos.veterinario}` : ''
-          }`,
-        },
-        ...prev.documentos,
-      ],
-      eventos: [
-        {
-          id: `ev-ocr-trat-${Date.now()}`,
-          tipo: 'TRATAMIENTO',
-          especie: animal.especie,
-          animalId: animal.id,
-          crotal: animal.crotal,
-          fechaEvento: datos.fechaEmision,
-          motivo: `${datos.medicamento}${datos.recetaPresvet ? ` (${datos.recetaPresvet})` : ''}`,
-          origen: 'MANUAL',
-          estadoTramite: 'TRAMITADO',
-          fechaTramitado: datos.fechaEmision,
-          numeroJustificante: datos.recetaPresvet || undefined,
-        },
-        ...prev.eventos,
-      ],
-    }));
+              ...botiquinActual,
+            ]
+          : botiquinActual;
+
+      return {
+        ...prev,
+        botiquin: nuevoBotiquin,
+        animales:
+          idsSet.size > 0
+            ? prev.animales.map((a) =>
+                idsSet.has(a.id)
+                  ? {
+                      ...a,
+                      supresionActiva: {
+                        medicamento: datos.medicamento,
+                        recetaPresvet: datos.recetaPresvet || undefined,
+                        fechaInicio: datos.fechaEmision,
+                        finSupresionLeche: finLeche,
+                        finSupresionCarne: finCarne,
+                      },
+                    }
+                  : a,
+              )
+            : prev.animales,
+        tratamientos:
+          seleccionados.length > 0
+            ? [
+                {
+                  id: `trat-ocr-${Date.now()}`,
+                  animalIds: seleccionados.map((a) => a.id),
+                  crotales: seleccionados.map((a) => a.crotal),
+                  fechaPrescripcion: datos.fechaEmision,
+                  fechaAdministracion: datos.fechaEmision,
+                  recetaPresvet: datos.recetaPresvet || undefined,
+                  veterinario: datos.veterinario,
+                  aplicadoPor: 'GANADERO',
+                  medicamento: datos.medicamento,
+                  dosis: datos.dosisHabitual,
+                  diasSupresionCarne: datos.diasCarne,
+                  diasSupresionLeche: datos.diasLeche,
+                  finSupresionCarne: finCarne,
+                  finSupresionLeche: finLeche,
+                },
+                ...(prev.tratamientos || []),
+              ]
+            : prev.tratamientos,
+        documentos: [
+          {
+            id: `doc-ocr-rec-${Date.now()}`,
+            categoria: 'RECETA_PRESVET',
+            titulo: `Receta PRESVET (OCR) — ${resumenAnimales} (${datos.medicamento})`,
+            fechaEmision: datos.fechaEmision,
+            animalCrotal: seleccionados[0]?.crotal,
+            referencia: datos.recetaPresvet || undefined,
+            estado: 'VIGENTE',
+            notas: `Leche: ${datos.diasLeche}d · Carne: ${datos.diasCarne}d${
+              datos.veterinario ? ` · ${datos.veterinario}` : ''
+            }`,
+          },
+          ...prev.documentos,
+        ],
+        eventos:
+          seleccionados.length > 0
+            ? [
+                ...seleccionados.map((animal, idx) => ({
+                  id: `ev-ocr-trat-${Date.now()}-${idx}`,
+                  tipo: 'TRATAMIENTO' as const,
+                  especie: animal.especie,
+                  animalId: animal.id,
+                  crotal: animal.crotal,
+                  fechaEvento: datos.fechaEmision,
+                  motivo: `${datos.medicamento}${datos.recetaPresvet ? ` (${datos.recetaPresvet})` : ''}`,
+                  origen: 'MANUAL' as const,
+                  estadoTramite: 'TRAMITADO' as const,
+                  fechaTramitado: datos.fechaEmision,
+                  numeroJustificante: datos.recetaPresvet || undefined,
+                })),
+                ...prev.eventos,
+              ]
+            : prev.eventos,
+      };
+    });
     setModalOcr(false);
+    setOcrDesdeBotiquin(false);
+    const partesToast: string[] = [];
+    if (datos.anadirABotiquin) partesToast.push('añadido al Botiquín');
+    if (seleccionados.length > 0) partesToast.push(`aplicado a ${resumenAnimales}`);
     mostrarToast(
-      `Receta PRESVET guardada y supresión activada en #${animal.numeroCorto} (leche ${datos.diasLeche}d / carne ${datos.diasCarne}d).`,
+      `Receta PRESVET guardada${partesToast.length > 0 ? ` (${partesToast.join(' y ')})` : ''}.`,
     );
   };
 
@@ -1776,6 +1845,11 @@ export default function App() {
             onEliminarMedicamentoBotiquin={eliminarMedicamentoBotiquin}
             onAnadirMovimientoEconomico={anadirMovimientoEconomico}
             onAbrirLibrosOficiales={(libro = 'TRATAMIENTOS') => setModalLibros(libro)}
+            onAbrirTratamiento={() => setModalTratamiento('MULTI')}
+            onEscanearRecetaBotiquin={() => {
+              setOcrDesdeBotiquin(true);
+              setModalOcr(true);
+            }}
             onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
           />
         )}
@@ -1872,7 +1946,12 @@ export default function App() {
       {modalOcr && (
         <ModalEscanerOcr
           estado={estado}
-          onCerrar={() => setModalOcr(false)}
+          modoInicial={ocrDesdeBotiquin ? 'RECETA_PRESVET' : 'AUTO'}
+          desdeBotiquin={ocrDesdeBotiquin}
+          onCerrar={() => {
+            setModalOcr(false);
+            setOcrDesdeBotiquin(false);
+          }}
           onGuardarReceta={guardarRecetaOcr}
           onGuardarDib={guardarDibOcr}
         />
@@ -1935,7 +2014,7 @@ export default function App() {
 
       {modalTratamiento && (
         <ModalTratamiento
-          animal={modalTratamiento}
+          animal={modalTratamiento === 'MULTI' ? null : modalTratamiento}
           estado={estado}
           onCerrar={() => setModalTratamiento(null)}
           onGuardar={guardarTratamiento}

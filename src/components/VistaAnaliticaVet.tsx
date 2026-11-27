@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Droplets,
   FileSpreadsheet,
+  Pill,
   Printer,
   Search,
   ShieldCheck,
@@ -42,6 +43,8 @@ interface Props {
   onEliminarMedicamentoBotiquin: (medId: string) => void;
   onAnadirMovimientoEconomico?: (mov: MovimientoEconomico) => void;
   onAbrirLibrosOficiales?: (libro?: 'EXPLOTACION' | 'TRATAMIENTOS') => void;
+  onAbrirTratamiento?: () => void;
+  onEscanearRecetaBotiquin?: () => void;
   onAbrirFichaAnimal: (animal: UnidadGanadera) => void;
 }
 
@@ -53,6 +56,8 @@ export function VistaAnaliticaVet({
   onRegistrarSaneamiento,
   onAnadirMedicamentoBotiquin,
   onEliminarMedicamentoBotiquin,
+  onAbrirTratamiento,
+  onEscanearRecetaBotiquin,
   onAbrirFichaAnimal,
 }: Props) {
   const hoy = hoyIso();
@@ -124,14 +129,26 @@ export function VistaAnaliticaVet({
             <h2 className="text-lg font-extrabold text-[#0f1f18]">Veterinario</h2>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setVerParteVet(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#16523e]"
-          >
-            <Stethoscope className="h-4 w-4 text-amber-300" />
-            Parte Veterinario
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onAbrirTratamiento && (
+              <button
+                type="button"
+                onClick={onAbrirTratamiento}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-extrabold text-sky-900 shadow-xs transition hover:bg-sky-100"
+              >
+                <Pill className="h-4 w-4 text-sky-700" />
+                Tratamiento
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setVerParteVet(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#16523e]"
+            >
+              <Stethoscope className="h-4 w-4 text-amber-300" />
+              Parte Veterinario
+            </button>
+          </div>
         </div>
 
         {/* 3 iconos circulares en fila */}
@@ -204,6 +221,7 @@ export function VistaAnaliticaVet({
           onRegistrarSaneamiento={onRegistrarSaneamiento}
           onAnadirMedicamentoBotiquin={onAnadirMedicamentoBotiquin}
           onEliminarMedicamentoBotiquin={onEliminarMedicamentoBotiquin}
+          onEscanearRecetaBotiquin={onEscanearRecetaBotiquin}
         />
       )}
 

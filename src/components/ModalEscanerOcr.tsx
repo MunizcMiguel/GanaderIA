@@ -24,13 +24,15 @@ import type { EstadoGanaderia, SexoAnimal } from '../domain/types';
 import { ModalBase } from './ModalBase';
 
 export interface AccionGuardarRecetaOcr {
-  animalId: string;
+  animalIds: string[];
   medicamento: string;
+  dosisHabitual?: string;
   recetaPresvet: string;
   diasLeche: number;
   diasCarne: number;
   fechaEmision: string;
   veterinario?: string;
+  anadirABotiquin?: boolean;
 }
 
 export interface AccionGuardarDibOcr {
@@ -45,12 +47,14 @@ export interface AccionGuardarDibOcr {
 export function ModalEscanerOcr({
   estado,
   modoInicial = 'AUTO',
+  desdeBotiquin = false,
   onCerrar,
   onGuardarReceta,
   onGuardarDib,
 }: {
   estado: EstadoGanaderia;
   modoInicial?: 'AUTO' | 'RECETA_PRESVET' | 'DIB';
+  desdeBotiquin?: boolean;
   onCerrar: () => void;
   onGuardarReceta: (datos: AccionGuardarRecetaOcr) => void;
   onGuardarDib: (datos: AccionGuardarDibOcr) => void;
@@ -70,7 +74,10 @@ export function ModalEscanerOcr({
 
   // Campos editables para Receta PRESVET
   const [tipoDetectado, setTipoDetectado] = useState<'RECETA_PRESVET' | 'DIB' | null>(null);
-  const [recetaAnimalId, setRecetaAnimalId] = useState('');
+  const [recetaAnimalIds, setRecetaAnimalIds] = useState<string[]>([]);
+  const [busquedaVacaReceta, setBusquedaVacaReceta] = useState('');
+  const [anadirABotiquin, setAnadirABotiquin] = useState<boolean>(desdeBotiquin);
+  const [recetaDosis, setRecetaDosis] = useState('');
   const [recetaCodigo, setRecetaCodigo] = useState('');
   const [recetaMedicamento, setRecetaMedicamento] = useState('');
   const [recetaDiasLeche, setRecetaDiasLeche] = useState('0');
@@ -98,7 +105,7 @@ export function ModalEscanerOcr({
 
     if (res.tipo === 'RECETA_PRESVET') {
       const r: ResultadoOcrReceta = res;
-      setRecetaAnimalId(r.animalEncontrado?.id || activos[0]?.id || '');
+      setRecetaAnimalIds(r.animalEncontrado ? [r.animalEncontrado.id] : []);
       setRecetaCodigo(r.recetaPresvet);
       setRecetaMedicamento(r.medicamento);
       setRecetaDiasLeche(String(r.diasLeche));
@@ -235,18 +242,26 @@ export function ModalEscanerOcr({
     }
   };
 
+  const toggleVacaReceta = (id: string) => {
+    setRecetaAnimalIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (tipoDetectado === 'RECETA_PRESVET') {
-      if (!recetaAnimalId || !recetaMedicamento.trim()) return;
+      if (!recetaMedicamento.trim()) return;
       onGuardarReceta({
-        animalId: recetaAnimalId,
+        animalIds: recetaAnimalIds,
         medicamento: recetaMedicamento.trim(),
+        dosisHabitual: recetaDosis.trim() || undefined,
         recetaPresvet: recetaCodigo.trim(),
         diasLeche: Math.max(0, Number(recetaDiasLeche) || 0),
         diasCarne: Math.max(0, Number(recetaDiasCarne) || 0),
         fechaEmision: recetaFecha,
         veterinario: recetaVet.trim() || undefined,
+        anadirABotiquin,
       });
     } else if (tipoDetectado === 'DIB') {
       if (!dibCrotal.trim()) return;
@@ -468,24 +483,18 @@ export function ModalEscanerOcr({
 
             {tipoDetectado === 'RECETA_PRESVET' ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
-                  Animal detectado en la receta
-                  <select
-                    value={recetaAnimalId}
-                    onChange={(e) => setRecetaAnimalId(e.target.value)}
-                    required
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
-                  >
-                    {activos.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        #{a.numeroCorto} {a.nombre ? `(${a.nombre})` : ''} — {a.crotal}
-                      </option>
-                    ))}
-                  </select>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2.5 text-xs font-bold text-sky-950 sm:col-span-2">
+                  <span>Añadir medicamento al Botiquín de la Granja</span>
+                  <input
+                    type="checkbox"
+                    checked={anadirABotiquin}
+                    onChange={(e) => setAnadirABotiquin(e.target.checked)}
+                    className="h-4 w-4 accent-emerald-700"
+                  />
                 </label>
 
-                <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
-                  Medicamento / Especialidad
+                <label className="text-xs font-semibold text-slate-700">
+                  Medicamento / Especialidad *
                   <input
                     type="text"
                     required
@@ -495,6 +504,71 @@ export function ModalEscanerOcr({
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
                   />
                 </label>
+
+                <label className="text-xs font-semibold text-slate-700">
+                  Dosis habitual (opcional)
+                  <input
+                    type="text"
+                    value={recetaDosis}
+                    onChange={(e) => setRecetaDosis(e.target.value)}
+                    placeholder="Ej: 10 ml / 24h"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"
+                  />
+                </label>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800">
+                      Asignar ahora a vacas (opcional · {recetaAnimalIds.length} seleccionadas)
+                    </span>
+                    {recetaAnimalIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setRecetaAnimalIds([])}
+                        className="text-[11px] font-bold text-slate-500 underline hover:text-slate-800"
+                      >
+                        Ninguna (solo botiquín)
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={busquedaVacaReceta}
+                    onChange={(e) => setBusquedaVacaReceta(e.target.value)}
+                    placeholder="Buscar vaca por número o nombre..."
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs"
+                  />
+                  <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto pt-1">
+                    {activos
+                      .filter((a) => {
+                        const q = busquedaVacaReceta.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          a.numeroCorto.toLowerCase().includes(q) ||
+                          (a.nombre || '').toLowerCase().includes(q) ||
+                          a.crotal.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((a) => {
+                        const sel = recetaAnimalIds.includes(a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => toggleVacaReceta(a.id)}
+                            className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
+                              sel
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-400'
+                            }`}
+                          >
+                            #{a.numeroCorto}
+                            {a.nombre ? ` ${a.nombre}` : ''}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
 
                 <label className="text-xs font-semibold text-slate-700">
                   Nº Receta PRESVET
@@ -618,7 +692,13 @@ export function ModalEscanerOcr({
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {tipoDetectado === 'RECETA_PRESVET'
-                  ? 'Activar supresión y archivar receta'
+                  ? anadirABotiquin && recetaAnimalIds.length > 0
+                    ? `Añadir al botiquín y aplicar (${recetaAnimalIds.length})`
+                    : anadirABotiquin
+                      ? 'Añadir al botiquín y archivar receta'
+                      : recetaAnimalIds.length > 0
+                        ? `Activar supresión (${recetaAnimalIds.length}) y archivar`
+                        : 'Archivar receta en documentos'
                   : dibAnimalExistenteId
                     ? 'Verificar DIB y archivar'
                     : 'Dar de alta en Censo y archivar DIB'}

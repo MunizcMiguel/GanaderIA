@@ -1,5 +1,6 @@
 import {
   Euro,
+  FileScan,
   Pill,
   Plus,
   ShieldCheck,
@@ -32,12 +33,14 @@ export function SubVistaSaneamientoBotiquin({
   onRegistrarSaneamiento,
   onAnadirMedicamentoBotiquin,
   onEliminarMedicamentoBotiquin,
+  onEscanearRecetaBotiquin,
 }: {
   estado: EstadoGanaderia;
   hoy: string;
   onRegistrarSaneamiento: (campana: CampanaSaneamiento) => void;
   onAnadirMedicamentoBotiquin: (med: MedicamentoBotiquin) => void;
   onEliminarMedicamentoBotiquin: (medId: string) => void;
+  onEscanearRecetaBotiquin?: () => void;
 }) {
   const activos = useMemo(
     () => estado.animales.filter((a) => a.estado === 'ACTIVO'),
@@ -351,6 +354,27 @@ export function SubVistaSaneamientoBotiquin({
             </p>
           </div>
         </div>
+
+        {onEscanearRecetaBotiquin && (
+          <button
+            type="button"
+            onClick={onEscanearRecetaBotiquin}
+            className="flex w-full items-center gap-4 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/70 p-4 text-left transition hover:border-emerald-600 hover:bg-emerald-50"
+          >
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0f3d2e] text-white shadow-sm">
+              <FileScan className="h-7 w-7 text-amber-300" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-[#0f1f18]">
+                Escanear Receta para añadir al Botiquín
+              </p>
+              <p className="mt-0.5 text-xs text-[#4a5d54]">
+                Foto o texto OCR de receta PRESVET · Guarda el fármaco y permite asignarlo (o no) a
+                varias vacas a la vez.
+              </p>
+            </div>
+          </button>
+        )}
 
         <form onSubmit={handleCrearMed} className="grid gap-2 rounded-xl bg-[#f8faf6] p-3 text-xs sm:grid-cols-6">
           <input
