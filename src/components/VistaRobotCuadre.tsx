@@ -1,7 +1,5 @@
 import {
-  ArrowDownToLine,
   ArrowRight,
-  ArrowUpFromLine,
   CheckCircle2,
   CloudUpload,
   Download,
@@ -71,7 +69,14 @@ export function VistaRobotCuadre({
   const procesarCsv = (contenido: string, nombreArchivo: string) => {
     const parsed = parsearCsvRobot(contenido);
     const hallazgos = ejecutarCuadreRobotPrincipado(estado, parsed.registros, hoyIso());
-    setDiscrepancias(hallazgos);
+    const incorporables = hallazgos.filter(
+      (d) => d.tipo !== 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT',
+    );
+    incorporables.forEach((d) => onIncorporarDiscrepancia(d));
+    const restantes = hallazgos.filter(
+      (d) => d.tipo === 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT',
+    );
+    setDiscrepancias(restantes);
     setResumenImport({
       archivo: nombreArchivo,
       fuente: parsed.fuenteDetectada,
@@ -79,6 +84,16 @@ export function VistaRobotCuadre({
       advertencias: parsed.advertencias,
     });
     onRegistrarImportacion(nombreArchivo, parsed.fuenteDetectada, parsed.registros.length);
+
+    descargarArchivo(
+      `ganaderia_robot_${estado.explotacion.codigoRega}_${hoyIso()}.ads`,
+      generarArchivoAdisParaRobot(estado),
+      'text/plain;charset=utf-8',
+    );
+
+    setAvisoSync(
+      `Sincronización completada con ${nombreArchivo}: leídos ${parsed.registros.length} datos del robot, pasados ${incorporables.length} aviso(s) nuevos a GanaderIA/Principado y descargado el archivo actualizado para el robot.`,
+    );
   };
 
   const leerArchivo = async (file?: File) => {
@@ -149,100 +164,52 @@ export function VistaRobotCuadre({
   ];
 
   const handlePonerTodoAlDia = () => {
-    const incorporables = discrepancias.filter(
-      (d) => d.tipo !== 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT',
-    );
-    if (incorporables.length > 0) {
-      incorporables.forEach((d) => onIncorporarDiscrepancia(d));
-      setDiscrepancias((prev) =>
-        prev.filter((d) => d.tipo === 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT'),
-      );
-      setAvisoSync(
-        `¡Listo! Se han pasado ${incorporables.length} aviso(s) del robot a tu cuadra y a la cola del Principado.`,
-      );
-      return;
-    }
-
-    if (pendientes.length > 0) {
-      colaPrincipadoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setAvisoSync(
-        `Tu cuadra y el robot ya coinciden. Tienes ${pendientes.length} trámite(s) abajo listos para enviar al Principado.`,
-      );
-      return;
-    }
-
-    setAvisoSync('¡Todo está al día! No hay diferencias pendientes entre el robot, tu cuadra y el Principado.');
+    inputRef.current?.click();
   };
 
   return (
     <div className="animate-fade-up space-y-6">
-      {/* 3 Acciones Principales del Robot (lenguaje claro, sin tecnicismos) */}
-      <section className="card-surface rounded-2xl p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-extrabold text-[#0f1f18]">
-            Conexión con tu Robot de Ordeño
-          </h2>
-          <p className="mt-0.5 text-xs text-[#52655c]">
-            Elige qué quieres hacer ahora con los datos de {estado.explotacion.marcaRobot}:
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300 shadow-xs transition group-hover:scale-105">
-              <ArrowDownToLine className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-[#0f1f18]">Traer del robot</p>
-              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
-                Leer los partos, bajas y vacas que tiene apuntados el robot.
-              </p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              descargarArchivo(
-                `ganaderia_robot_${estado.explotacion.codigoRega}_${hoyIso()}.ads`,
-                generarArchivoAdisParaRobot(estado),
-                'text/plain;charset=utf-8',
-              );
-              setAvisoSync(
-                'Archivo listo para llevar al ordenador del robot descargado correctamente.',
-              );
-            }}
-            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4 text-left transition hover:border-sky-500 hover:bg-sky-50"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-800 text-white shadow-xs transition group-hover:scale-105">
-              <ArrowUpFromLine className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-[#0f1f18]">Llevar al robot</p>
-              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
-                Pasar al robot los nacimientos y cambios que apuntaste en la cuadra.
-              </p>
-            </div>
-          </button>
+      {/* Acción única protagonista: Poner todo al día */}
+      <section className="card-surface rounded-2xl p-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#0f1f18]">
+              Sincronización con tu Robot ({estado.explotacion.marcaRobot})
+            </h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#52655c]">
+              En un solo paso: lee la información actual del robot, la contrasta con lo que tienes
+              apuntado en GanaderIA, añade los partos o bajas que falten y prepara el archivo
+              actualizado para dejar ambos al día.
+            </p>
+          </div>
 
           <button
             type="button"
             onClick={handlePonerTodoAlDia}
-            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4 text-left transition hover:border-amber-500 hover:bg-amber-50"
+            className="inline-flex shrink-0 items-center gap-3 rounded-2xl bg-[#0f3d2e] px-6 py-4 text-sm font-extrabold text-white shadow-md transition hover:bg-[#16523e]"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs transition group-hover:scale-105">
-              <RefreshCw className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-[#0f1f18]">Poner todo al día</p>
-              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
-                Revisar diferencias entre el robot, tu cuadra y el Principado de golpe.
-              </p>
-            </div>
+            <RefreshCw className="h-5 w-5 text-amber-300" />
+            Poner todo al día
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#edf1e9] pt-3 text-xs text-[#52655c]">
+          <span>¿Quieres probar cómo funciona sin archivo real?</span>
+          <button
+            type="button"
+            onClick={() => procesarCsv(generarCsvEjemploLely(), 'lely_horizon_demo.csv')}
+            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 font-bold text-emerald-900 hover:bg-emerald-100"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            Sincronizar ejemplo Lely
+          </button>
+          <button
+            type="button"
+            onClick={() => procesarCsv(generarCsvEjemploDeLaval(), 'delaval_delpro_demo.csv')}
+            className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2.5 py-1 font-semibold text-[#31453b] hover:bg-[#f4f6f1]"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Sincronizar ejemplo DeLaval
           </button>
         </div>
 
