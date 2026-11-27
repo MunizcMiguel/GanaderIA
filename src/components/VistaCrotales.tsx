@@ -1,4 +1,13 @@
-import { AlertCircle, CheckCircle2, Download, Plus, Tag } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Copy,
+  Download,
+  Plus,
+  Tag,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
   contarCrotalesDisponibles,
@@ -20,10 +29,43 @@ interface Props {
 }
 
 export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Props) {
-  const [prefijo, setPrefijo] = useState('ES03004512');
+  const [prefijo, setPrefijo] = useState('ES22030001');
   const [desde, setDesde] = useState('21');
   const [hasta, setHasta] = useState('50');
   const [origen, setOrigen] = useState('OCA / Agroficina Virtual');
+  const [copiado, setCopiado] = useState(false);
+  const [margenAviso, setMargenAviso] = useState<number>(() => {
+    try {
+      const saved = window.localStorage.getItem('ganaderia_margen_crotales');
+      if (saved !== null) {
+        const n = Number(saved);
+        if (Number.isInteger(n) && n >= 0 && n <= 5) return n;
+      }
+    } catch {
+      // ignora
+    }
+    return 5;
+  });
+
+  const cambiarMargenAviso = (nuevo: number) => {
+    const clamped = Math.max(0, Math.min(5, nuevo));
+    setMargenAviso(clamped);
+    try {
+      window.localStorage.setItem('ganaderia_margen_crotales', String(clamped));
+    } catch {
+      // ignora
+    }
+  };
+
+  const handleCopiarCrotal = async (codigo: string) => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 1800);
+    } catch {
+      // ignora
+    }
+  };
 
   const reglas = obtenerReglasNormativas(
     estado.explotacion.comunidad,
@@ -76,48 +118,112 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
     );
   };
 
-  return (
-    <div className="animate-fade-up space-y-6">
-      {/* Stock + Ilustración realista del próximo crotal */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="card-surface flex flex-col justify-between gap-4 rounded-2xl p-5 sm:flex-row sm:items-center lg:col-span-7">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-900">
-              <Tag className="h-3.5 w-3.5" />
-              Stock en cajón ({estado.explotacion.especiePrincipal})
-            </div>
-            <div className="flex items-baseline gap-2.5">
-              <span className="font-mono text-5xl font-extrabold text-[#0f3d2e]">
-                {totalDisponibles}
-              </span>
-              <span className="text-sm font-medium text-[#52655c]">crotales libres</span>
-            </div>
-            <p className="max-w-xs text-xs leading-relaxed text-[#52655c]">
-              Al registrar un nacimiento o cuadrar el robot, GanaderIA sugiere el próximo código
-              libre para evitar errores de tecleo.
-            </p>
-            {siguiente && (
-              <div className="pt-1">
-                <BotonCopiar valor={siguiente} etiqueta={`Copiar ${siguiente}`} />
-              </div>
-            )}
-          </div>
+  const mostrarAlertaStockBajo = totalDisponibles < margenAviso;
 
-          <div className="flex flex-col items-center gap-1.5">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#52655c]">
-              Próximo crotal libre
-            </span>
-            {siguiente ? (
-              <CrotalVisual
-                crotal={siguiente}
-                especie={estado.explotacion.especiePrincipal}
-                variante="tarjeta"
-              />
-            ) : (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center text-xs font-bold text-red-800">
-                Sin crotales libres en stock. Añade una nueva remesa.
+  return (
+    <div className="animate-fade-up space-y-5">
+      {/* Alerta de stock bajo de crotales (si quedan menos del margen 0..5) */}
+      {mostrarAlertaStockBajo && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-xs text-red-950 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-extrabold text-red-900">
+                ¡Pide crotales nuevos! Quedan {totalDisponibles} en el cajón
+              </p>
+              <p className="text-xs text-red-800">
+                Tienes activado el aviso cuando quedan menos de <strong>{margenAviso}</strong>{' '}
+                crotales. Puedes posponer el aviso bajando el margen:
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="font-bold text-red-900">Posponer aviso a &lt;</span>
+                {[5, 4, 3, 2, 1, 0].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => cambiarMargenAviso(m)}
+                    className={`rounded-lg px-2.5 py-1 font-mono text-xs font-extrabold transition ${
+                      margenAviso === m
+                        ? 'bg-red-700 text-white'
+                        : 'border border-red-200 bg-white text-red-900 hover:bg-red-100'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock en cajón (icono circular) + Siguiente crotal (con copiar integrado) en paralelo */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="card-surface rounded-2xl p-4 sm:p-5 lg:col-span-7">
+          <div className="grid grid-cols-2 items-center gap-3">
+            {/* Izquierda: Icono circular de crotales disponibles en el cajón */}
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#0f3d2e] bg-[#f8faf6] shadow-xs">
+                <Tag className="h-9 w-9 text-[#0f3d2e]" />
+                <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs">
+                  {totalDisponibles}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-[#0f1f18]">Crotales en cajón</p>
+                <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-[#52655c]">
+                  <span>Aviso &lt;</span>
+                  <select
+                    aria-label="Margen de aviso de crotales"
+                    value={margenAviso}
+                    onChange={(e) => cambiarMargenAviso(Number(e.target.value))}
+                    className="rounded border border-[#dce4d6] bg-white px-1 py-0.5 font-mono text-[10px] font-bold text-[#0f1f18]"
+                  >
+                    {[5, 4, 3, 2, 1, 0].map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Derecha: Siguiente crotal libre con botón de copiar integrado */}
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#52655c]">
+                Siguiente crotal
+              </span>
+              {siguiente ? (
+                <div className="relative inline-block">
+                  <CrotalVisual
+                    crotal={siguiente}
+                    especie={estado.explotacion.especiePrincipal}
+                    variante="tarjeta"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopiarCrotal(siguiente)}
+                    title={`Copiar ${siguiente}`}
+                    aria-label={`Copiar ${siguiente}`}
+                    className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-lg border border-amber-500/60 bg-white/90 px-1.5 py-1 text-[10px] font-extrabold text-amber-950 shadow-xs transition hover:bg-white"
+                  >
+                    {copiado ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-700" />
+                        <span className="text-emerald-800">OK</span>
+                      </>
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-800">
+                  Sin crotales libres.
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
