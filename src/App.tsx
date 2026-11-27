@@ -1498,10 +1498,16 @@ export default function App() {
         <button
           type="button"
           onClick={() => setPestana('panel')}
+          aria-label="Ir a Inicio"
           className="flex items-center gap-2.5 text-left transition active:scale-[0.98]"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300">
-            <Sprout className="h-4 w-4" />
+          <div className="flex flex-col items-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300 shadow-xs">
+              <Sprout className="h-5 w-5" />
+            </div>
+            <span className="mt-0.5 text-[10px] font-extrabold leading-none text-[#0f3d2e]">
+              Inicio
+            </span>
           </div>
           <div>
             <span className="text-base font-extrabold leading-none text-[#0f1f18]">
