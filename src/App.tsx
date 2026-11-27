@@ -6,7 +6,6 @@ import {
   GitCompare,
   LayoutDashboard,
   Settings,
-  Smartphone,
   Sprout,
   Stethoscope,
   Tag,
@@ -31,7 +30,6 @@ import {
   ModalTratamiento,
 } from './components/ModalesRegistro';
 import { ModalLibrosOficiales } from './components/ModalLibrosOficiales';
-import { ModoCuadraMovil } from './components/ModoCuadraMovil';
 import { VistaAnaliticaVet } from './components/VistaAnaliticaVet';
 import { VistaCalendario } from './components/VistaCalendario';
 import { VistaCenso } from './components/VistaCenso';
@@ -131,40 +129,6 @@ export default function App() {
   };
 
   const [pestana, setPestana] = useState<Pestana>('panel');
-  const [modoPreferido, setModoPreferido] = useState<'AUTO' | 'CUADRA' | 'OFICINA'>(() => {
-    try {
-      const p = new URLSearchParams(window.location.search).get('modo');
-      if (p === 'cuadra') return 'CUADRA';
-      if (p === 'oficina') return 'OFICINA';
-      const saved = window.localStorage.getItem('ganaderia_modo_ui');
-      if (saved === 'CUADRA' || saved === 'OFICINA') return saved;
-    } catch {
-      // ignora
-    }
-    return 'AUTO';
-  });
-  const [esPantallaMovil, setEsPantallaMovil] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
-  );
-
-  useEffect(() => {
-    const onResize = () => setEsPantallaMovil(window.innerWidth < 1024);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  const usarModoCuadra =
-    modoPreferido === 'CUADRA' || (modoPreferido === 'AUTO' && esPantallaMovil);
-
-  const cambiarModoPreferido = (nuevo: 'AUTO' | 'CUADRA' | 'OFICINA') => {
-    setModoPreferido(nuevo);
-    try {
-      if (nuevo === 'AUTO') window.localStorage.removeItem('ganaderia_modo_ui');
-      else window.localStorage.setItem('ganaderia_modo_ui', nuevo);
-    } catch {
-      // ignora
-    }
-  };
   const [toast, setToast] = useState<string | null>(null);
   const [drawerAnimalGlobalId, setDrawerAnimalGlobalId] = useState<string | null>(null);
 
@@ -1385,36 +1349,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f1]">
-      {usarModoCuadra ? (
-        <ModoCuadraMovil
-          estado={estado}
-          alertas={alertas}
-          numPendientes={numPendientes}
-          onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
-          onAbrirVoz={() => setModalVoz(true)}
-          onAbrirOcr={() => setModalOcr(true)}
-          onAbrirNacimiento={() => setModalNacimiento(true)}
-          onAbrirCompra={() => setModalCompra(true)}
-          onAbrirBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
-          onAbrirLibros={() => setModalLibros('EXPLOTACION')}
-          onAbrirConfig={() => setModalConfig(true)}
-          onRegistrarIncidencia={registrarIncidencia}
-          onCambiarAModoOficina={(destino) => {
-            if (destino) setPestana(destino);
-            cambiarModoPreferido('OFICINA');
-          }}
-          tabExterno={
-            pestana === 'censo' ? 'vacas' : pestana === 'calendario' ? 'agenda' : 'hoy'
-          }
-          ocultarNavInferior
-        />
-      ) : (
-        <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
-          {/* Sidebar escritorio limpia y agrupada */}
+    <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
+      {/* Sidebar escritorio limpia y agrupada */}
       <aside className="no-print sticky top-0 hidden h-screen w-68 shrink-0 flex-col border-r border-[#e1e7dc] bg-white lg:flex">
         <div className="border-b border-[#edf1e9] px-5 py-4">
-          <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setPestana('panel')}
+            className="flex w-full items-center gap-2.5 text-left transition hover:opacity-85"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#0f3d2e] to-[#166534] text-amber-300 shadow-xs">
               <Sprout className="h-5 w-5" />
             </div>
@@ -1424,7 +1367,7 @@ export default function App() {
               </span>
               <p className="text-[11px] font-semibold text-[#52655c]">Asturias · SITRAN</p>
             </div>
-          </div>
+          </button>
 
           <button
             type="button"
@@ -1459,14 +1402,6 @@ export default function App() {
         <div className="space-y-1 border-t border-[#edf1e9] p-3.5">
           <button
             type="button"
-            onClick={() => cambiarModoPreferido('CUADRA')}
-            className="flex w-full items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-bold text-[#0f3d2e] transition hover:bg-emerald-100"
-          >
-            <Smartphone className="h-4 w-4 text-emerald-700" />
-            Probar Modo Cuadra (Móvil)
-          </button>
-          <button
-            type="button"
             onClick={() => setModalConfig(true)}
             className="flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold text-[#4a5d54] transition hover:bg-[#edf1e9] hover:text-[#0f1f18]"
           >
@@ -1476,9 +1411,13 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Cabecera móvil minimalista */}
+      {/* Cabecera móvil minimalista: clic en GanaderIA -> Inicio | icono Agenda -> Calendario */}
       <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-[#e1e7dc] bg-white/95 px-4 py-3 backdrop-blur-xs lg:hidden">
-        <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => setPestana('panel')}
+          className="flex items-center gap-2.5 text-left transition active:scale-[0.98]"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300">
             <Sprout className="h-4 w-4" />
           </div>
@@ -1490,15 +1429,20 @@ export default function App() {
               {estado.explotacion.nombre}
             </p>
           </div>
-        </div>
+        </button>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => cambiarModoPreferido('CUADRA')}
-            className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-[#0f3d2e]"
+            onClick={() => setPestana('calendario')}
+            aria-label="Abrir Agenda"
+            className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition ${
+              pestana === 'calendario'
+                ? 'border-[#0f3d2e] bg-[#0f3d2e] text-white'
+                : 'border-emerald-200 bg-emerald-50 text-[#0f3d2e]'
+            }`}
           >
-            <Smartphone className="h-3.5 w-3.5" />
-            Cuadra
+            <Calendar className="h-3.5 w-3.5" />
+            Agenda
           </button>
           <button
             type="button"
@@ -1857,33 +1801,23 @@ export default function App() {
         onRegistrarNacimiento={() => setModalNacimiento(true)}
         onRegistrarBaja={() => setModalBajaAnimal('SIN_PRESELECCION')}
       />
-        </div>
-      )}
 
-      {/* Menú inferior unificado en móvil (tanto en Modo Cuadra como en Modo Oficina) */}
+      {/* Menú inferior móvil (sin Inicio ni Agenda, accesibles desde la cabecera superior) */}
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-[#e1e7dc] bg-white/95 backdrop-blur-xs lg:hidden">
-        {navItems.map((item) => {
-          const Icono = item.icono;
-          const activo = pestana === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setPestana(item.id);
-                if (
-                  usarModoCuadra &&
-                  item.id !== 'panel' &&
-                  item.id !== 'censo' &&
-                  item.id !== 'calendario'
-                ) {
-                  cambiarModoPreferido('OFICINA');
-                }
-              }}
-              className={`relative flex min-w-[66px] flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
-                activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
-              }`}
-            >
+        {navItems
+          .filter((item) => item.id !== 'panel' && item.id !== 'calendario')
+          .map((item) => {
+            const Icono = item.icono;
+            const activo = pestana === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setPestana(item.id)}
+                className={`relative flex min-w-[66px] flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
+                  activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
+                }`}
+              >
               <span
                 className={`flex h-7 w-10 items-center justify-center rounded-xl transition ${
                   activo ? 'bg-emerald-100 text-[#0f3d2e]' : ''
