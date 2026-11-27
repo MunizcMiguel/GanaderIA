@@ -217,10 +217,15 @@ export function VistaCrotales({
                 <button
                   type="button"
                   onClick={() => setMostrarCajonDetalle(true)}
-                  className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold text-sky-900 shadow-2xs"
+                  className="inline-flex flex-wrap items-center justify-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold text-sky-900 shadow-2xs"
                 >
                   <Mail className="h-3 w-3 text-sky-700" />
-                  Pedido realizado · {formatearFechaEs(estado.pedidoCrotalesActivo.fechaPedido)}
+                  <span>
+                    Pedido realizado · {formatearFechaEs(estado.pedidoCrotalesActivo.fechaPedido)} ·{' '}
+                    <span className="font-mono text-orange-600">
+                      {estado.pedidoCrotalesActivo.cantidad} uds.
+                    </span>
+                  </span>
                 </button>
               )}
               <button
@@ -236,7 +241,7 @@ export function VistaCrotales({
                   }`}
                 >
                   <Tag className="h-9 w-9 text-[#0f3d2e]" />
-                  <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs">
+                  <span className="absolute -bottom-1.5 -left-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs">
                     {totalDisponibles}
                   </span>
                 </div>
@@ -612,7 +617,12 @@ export function VistaCrotales({
               {ultimoSinRecibir && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-[10px] font-extrabold text-sky-900">
                   <Mail className="h-3 w-3 text-sky-700" />
-                  Último pedido: {formatearFechaEs(ultimoSinRecibir.fechaPedido)}
+                  <span>
+                    Último pedido: {formatearFechaEs(ultimoSinRecibir.fechaPedido)} ·{' '}
+                    <span className="font-mono text-orange-600">
+                      {ultimoSinRecibir.items.length} uds.
+                    </span>
+                  </span>
                 </span>
               )}
 
