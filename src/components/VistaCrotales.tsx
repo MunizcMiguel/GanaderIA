@@ -5,10 +5,11 @@ import {
   CheckCircle2,
   Copy,
   Download,
+  ExternalLink,
   Plus,
   Tag,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   contarCrotalesDisponibles,
   listarCrotalesDisponiblesEnLote,
@@ -34,6 +35,8 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
   const [hasta, setHasta] = useState('50');
   const [origen, setOrigen] = useState('OCA / Agroficina Virtual');
   const [copiado, setCopiado] = useState(false);
+  const [mostrarCajonDetalle, setMostrarCajonDetalle] = useState(false);
+  const formRemesaRef = useRef<HTMLFormElement | null>(null);
   const [margenAviso, setMargenAviso] = useState<number>(() => {
     try {
       const saved = window.localStorage.getItem('ganaderia_margen_crotales');
@@ -161,31 +164,43 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="card-surface rounded-2xl p-4 sm:p-5 lg:col-span-7">
           <div className="grid grid-cols-2 items-center gap-3">
-            {/* Izquierda: Icono circular de crotales disponibles en el cajón */}
+            {/* Izquierda: Icono circular de crotales disponibles en el cajón (clic para desplegar remesas) */}
             <div className="flex flex-col items-center gap-2 text-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#0f3d2e] bg-[#f8faf6] shadow-xs">
-                <Tag className="h-9 w-9 text-[#0f3d2e]" />
-                <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs">
-                  {totalDisponibles}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs font-extrabold text-[#0f1f18]">Crotales en cajón</p>
-                <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-[#52655c]">
-                  <span>Aviso &lt;</span>
-                  <select
-                    aria-label="Margen de aviso de crotales"
-                    value={margenAviso}
-                    onChange={(e) => cambiarMargenAviso(Number(e.target.value))}
-                    className="rounded border border-[#dce4d6] bg-white px-1 py-0.5 font-mono text-[10px] font-bold text-[#0f1f18]"
-                  >
-                    {[5, 4, 3, 2, 1, 0].map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
+              <button
+                type="button"
+                onClick={() => setMostrarCajonDetalle((v) => !v)}
+                className="group flex flex-col items-center gap-1.5 text-center"
+              >
+                <div
+                  className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 bg-[#f8faf6] shadow-xs transition group-hover:scale-105 ${
+                    mostrarCajonDetalle
+                      ? 'border-[#0f3d2e] ring-2 ring-emerald-300'
+                      : 'border-[#0f3d2e]'
+                  }`}
+                >
+                  <Tag className="h-9 w-9 text-[#0f3d2e]" />
+                  <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs">
+                    {totalDisponibles}
+                  </span>
                 </div>
+                <span className="text-xs font-extrabold text-[#0f1f18] underline decoration-emerald-400/70 underline-offset-2">
+                  Crotales en cajón
+                </span>
+              </button>
+              <div className="flex items-center justify-center gap-1 text-[10px] text-[#52655c]">
+                <span>Aviso &lt;</span>
+                <select
+                  aria-label="Margen de aviso de crotales"
+                  value={margenAviso}
+                  onChange={(e) => cambiarMargenAviso(Number(e.target.value))}
+                  className="rounded border border-[#dce4d6] bg-white px-1 py-0.5 font-mono text-[10px] font-bold text-[#0f1f18]"
+                >
+                  {[5, 4, 3, 2, 1, 0].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -225,10 +240,110 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
               )}
             </div>
           </div>
+
+          {/* Desplegable al pulsar en el cajón: remesas pedidas + crotales libres + solicitar nueva remesa */}
+          {mostrarCajonDetalle && (
+            <div className="mt-4 space-y-3 border-t border-[#e6ece2] pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0f3d2e]">
+                  Remesas pedidas y crotales sin asignar ({estado.lotesCrotales.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setMostrarCajonDetalle(false)}
+                  className="text-[11px] font-bold text-[#52655c] underline"
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              {estado.lotesCrotales.length === 0 ? (
+                <p className="rounded-xl bg-[#f8faf6] p-3 text-xs text-[#52655c]">
+                  No hay remesas registradas todavía.
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {estado.lotesCrotales.map((lote) => {
+                    const libres = listarCrotalesDisponiblesEnLote(lote);
+                    return (
+                      <div
+                        key={lote.id}
+                        className="rounded-xl border border-[#dce4d6] bg-[#f8faf6] p-3 text-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <span className="font-mono font-extrabold text-[#0f1f18]">
+                              {lote.prefijo} ({String(lote.desde).padStart(lote.digitosSecuencia, '0')}–
+                              {String(lote.hasta).padStart(lote.digitosSecuencia, '0')})
+                            </span>
+                            <p className="text-[11px] text-[#52655c]">
+                              {lote.origen} · Recibida {lote.fechaRecepcion}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-mono text-[11px] font-extrabold ${
+                              libres.length > 0
+                                ? 'bg-emerald-100 text-emerald-900'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {libres.length} libre(s)
+                          </span>
+                        </div>
+
+                        {libres.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {libres.map((cod) => (
+                              <button
+                                key={cod}
+                                type="button"
+                                onClick={() => handleCopiarCrotal(cod)}
+                                title={`Copiar ${cod}`}
+                                className="rounded-md border border-amber-300 bg-amber-100/80 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-950 hover:bg-amber-200"
+                              >
+                                {cod}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-1.5 text-[11px] italic text-[#6e8277]">
+                            Remesa agotada (todos asignados).
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    formRemesaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2.5 text-xs font-extrabold text-white hover:bg-[#16523e]"
+                >
+                  <Plus className="h-4 w-4 text-amber-300" />
+                  Solicitar nueva remesa de crotales
+                </button>
+                <a
+                  href={reglas.portalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#dce4d6] bg-white px-3 py-2.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
+                >
+                  RemoWeb
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Alta rápida de nueva remesa */}
         <form
+          ref={formRemesaRef}
           onSubmit={handleCrearLote}
           className="card-surface flex flex-col justify-between rounded-2xl p-5 lg:col-span-5"
         >
