@@ -3,7 +3,6 @@ import {
   Calendar,
   CalendarHeart,
   CheckCircle2,
-  ClipboardList,
   GitCompare,
   Landmark,
   LayoutDashboard,
@@ -64,6 +63,7 @@ import {
   eliminarCorralPersonalizado,
   obtenerCorralesActivos,
 } from './domain/incidencias';
+import { obtenerSimboloGanado } from './domain/reglasNormativas';
 import type { AccionVozInterpretada } from './domain/parserVozCampo';
 import type {
   AlmacenMultiExplotacion,
@@ -1214,19 +1214,35 @@ export default function App() {
     mostrarToast(`Animal ${crotalNorm} dado de alta desde su DIB y archivado en Documentos.`);
   };
 
+  const simboloMiGanado = useMemo(
+    () => obtenerSimboloGanado(estado.animales, estado.explotacion.especiePrincipal),
+    [estado.animales, estado.explotacion.especiePrincipal],
+  );
+
+  const IconoMiGanado = ({ className }: { className?: string }) => (
+    <span
+      aria-hidden="true"
+      className={`inline-flex items-center justify-center leading-none ${
+        simboloMiGanado.length > 2 ? 'text-[13px] tracking-tighter' : 'text-base'
+      } ${className || ''}`}
+    >
+      {simboloMiGanado}
+    </span>
+  );
+
   const navItems: {
     id: Pestana;
     label: string;
     corto: string;
     grupo: 'operacion' | 'gestion';
-    icono: typeof LayoutDashboard;
+    icono: typeof LayoutDashboard | typeof IconoMiGanado;
     badge?: number;
   }[] = [
     { id: 'panel', label: 'Semáforo', corto: 'Inicio', grupo: 'operacion', icono: LayoutDashboard, badge: numCriticas || undefined },
     { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
     { id: 'robot', label: 'Robot', corto: 'Robot', grupo: 'operacion', icono: GitCompare },
     { id: 'sitran', label: 'SITRAN', corto: 'SITRAN', grupo: 'operacion', icono: Landmark, badge: numPendientes || undefined },
-    { id: 'censo', label: 'Censo y Libro', corto: 'Censo', grupo: 'operacion', icono: ClipboardList },
+    { id: 'censo', label: 'MiGanado', corto: 'MiGanado', grupo: 'operacion', icono: IconoMiGanado },
     { id: 'crotales', label: 'Crotales', corto: 'Crotales', grupo: 'gestion', icono: Tag },
     { id: 'reproduccion', label: 'Reproducción', corto: 'Reprod.', grupo: 'gestion', icono: CalendarHeart },
     { id: 'salidas', label: 'Salidas y Docs', corto: 'Salidas', grupo: 'gestion', icono: Truck },

@@ -117,3 +117,29 @@ export function obtenerReglasNormativas(
     prefijoCrotal: 'ES',
   };
 }
+
+const SIMBOLO_ESPECIE: Record<EspecieCodigo, string> = {
+  BOVINO: '🐄',
+  OVINO: '🐑',
+  CAPRINO: '🐐',
+  EQUINO: '🐎',
+  PORCINO: '🐖',
+};
+
+export function obtenerSimboloGanado(
+  animales: Array<{ estado: string; especie: EspecieCodigo; cantidadEnLote?: number }>,
+  especiePrincipal: EspecieCodigo,
+): string {
+  const conteos = new Map<EspecieCodigo, number>();
+  for (const a of animales) {
+    if (a.estado !== 'ACTIVO') continue;
+    conteos.set(a.especie, (conteos.get(a.especie) || 0) + (a.cantidadEnLote || 1));
+  }
+  const ordenadas = [...conteos.entries()].sort((a, b) => b[1] - a[1]);
+  if (ordenadas.length === 0) return SIMBOLO_ESPECIE[especiePrincipal] || '🐄';
+  if (ordenadas.length === 1) return SIMBOLO_ESPECIE[ordenadas[0][0]] || '🐄';
+  return ordenadas
+    .slice(0, 3)
+    .map(([esp]) => SIMBOLO_ESPECIE[esp])
+    .join('');
+}

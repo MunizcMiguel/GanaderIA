@@ -36,6 +36,7 @@ import {
 } from '../domain/gestionAvanzada';
 import { detectarVacasProblema, obtenerCorralesActivos } from '../domain/incidencias';
 import { exportarCensoExcelCsv, importarCensoDesdeCsv } from '../domain/librosOficiales';
+import { obtenerSimboloGanado } from '../domain/reglasNormativas';
 import type {
   CuarteronUbre,
   EstadoCrotalFisico,
@@ -307,12 +308,20 @@ export function VistaCenso({
     (sexoFiltro !== 'TODOS' ? 1 : 0) +
     (razaFiltro !== 'TODAS' ? 1 : 0);
 
+  const simboloGanado = useMemo(
+    () => obtenerSimboloGanado(estado.animales, estado.explotacion.especiePrincipal),
+    [estado.animales, estado.explotacion.especiePrincipal],
+  );
+
   return (
     <div className="animate-fade-up space-y-4">
       {/* Cabecera: Título + Iconos visuales por tipo + 2 botones (Alta / Baja) */}
       <div className="card-surface space-y-4 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-extrabold text-[#0f1f18]">Censo y Libro Registro</h2>
+          <h2 className="flex items-center gap-2 text-lg font-extrabold text-[#0f1f18]">
+            <span className="text-xl leading-none">{simboloGanado}</span>
+            MiGanado
+          </h2>
           <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-extrabold text-emerald-900">
             {ugmRebano.totalUgm} UGM
           </span>
