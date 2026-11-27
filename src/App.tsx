@@ -58,6 +58,7 @@ import {
 import {
   anadirCorralPersonalizado,
   CORRALES_PREDEFINIDOS,
+  detectarVacasProblema,
   eliminarCorralPersonalizado,
   obtenerCorralesActivos,
 } from './domain/incidencias';
@@ -1310,6 +1311,10 @@ export default function App() {
     () => calcularCalendarioReproductivo(estado.inseminaciones, estado.animales, hoyIso()).length,
     [estado.inseminaciones, estado.animales],
   );
+  const vacasProblemaNav = useMemo(
+    () => detectarVacasProblema(estado, hoyIso()).length,
+    [estado],
+  );
   const diasMinSitranNav = useMemo(
     () =>
       alertas
@@ -1327,7 +1332,7 @@ export default function App() {
   const sitranBadgeColor: 'red' | 'orange' | 'green' =
     numPendientes > 0 && diasMinSitranNav !== undefined && diasMinSitranNav <= 2
       ? 'red'
-      : numPendientes > 0 && diasMinSitranNav !== undefined && diasMinSitranNav <= 5
+      : numPendientes > 0
         ? 'orange'
         : 'green';
 
@@ -1367,8 +1372,24 @@ export default function App() {
       badgeColor: 'green',
     },
     { id: 'salidas', label: 'Salidas y Guías', corto: 'Salidas', grupo: 'gestion', icono: Truck },
-    { id: 'analitica', label: 'Veterinario', corto: 'Vet', grupo: 'gestion', icono: Stethoscope },
-    { id: 'gestion', label: 'Gestión y Economía', corto: 'Gestión', grupo: 'gestion', icono: Briefcase },
+    {
+      id: 'analitica',
+      label: 'Veterinario',
+      corto: 'Vet',
+      grupo: 'gestion',
+      icono: Stethoscope,
+      badge: vacasProblemaNav,
+      badgeColor: vacasProblemaNav > 0 ? 'red' : 'green',
+    },
+    {
+      id: 'gestion',
+      label: 'Gestión y Economía',
+      corto: 'Gestión',
+      grupo: 'gestion',
+      icono: Briefcase,
+      badge: numPendientes,
+      badgeColor: sitranBadgeColor,
+    },
   ];
 
   const navOperacion = navItems.filter((i) => i.grupo === 'operacion');
