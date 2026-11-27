@@ -629,18 +629,24 @@ export function VistaCrotales({
                   }`}
                 >
                   <Copy className="h-8 w-8 text-[#0f3d2e]" />
-                  {/* Parte baja del icono: círculo verde (ya solicitados) y círculo rojo (faltan por solicitar) */}
+                  {/* Parte baja del icono: círculo verde (Pedidos) y círculo rojo (Sin pedir) con texto corto */}
                   <span
                     title="Duplicados ya solicitados (pendientes de colocar)"
                     className="absolute -bottom-1.5 -left-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs"
                   >
                     {yaSolicitadosCount}
                   </span>
+                  <span className="absolute -bottom-0.5 right-[calc(100%+10px)] whitespace-nowrap text-[11px] font-extrabold text-emerald-800">
+                    Pedidos
+                  </span>
                   <span
                     title="Crotales perdidos que faltan por solicitar"
                     className="absolute -bottom-1.5 -right-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs"
                   >
                     {faltanPorSolicitar.length}
+                  </span>
+                  <span className="absolute -bottom-0.5 left-[calc(100%+10px)] whitespace-nowrap text-[11px] font-extrabold text-red-700">
+                    Sin pedir
                   </span>
                 </div>
                 <span className="mt-1 text-xs font-extrabold text-[#0f1f18] underline decoration-emerald-400/70 underline-offset-2">
