@@ -365,7 +365,7 @@ export function VistaCenso({
                   }`}
                 >
                   <span aria-hidden="true">{item.emoji}</span>
-                  <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 font-mono text-[11px] font-extrabold text-white shadow-xs">
+                  <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-600 px-1 font-mono text-[11px] font-extrabold text-white shadow-xs">
                     {item.count}
                   </span>
                 </div>
