@@ -6,8 +6,10 @@ import {
   CheckSquare,
   ChevronRight,
   Download,
+  Euro,
   FileCheck2,
   FolderPlus,
+  HelpCircle,
   Layers,
   Minus,
   Plus,
@@ -18,6 +20,7 @@ import {
   SlidersHorizontal,
   Syringe,
   Tag,
+  Truck,
   Upload,
   X,
 } from 'lucide-react';
@@ -80,7 +83,10 @@ interface Props {
   onAbrirCompra: () => void;
   onAbrirLibrosOficiales: (libro?: 'EXPLOTACION' | 'TRATAMIENTOS') => void;
   onAbrirTratamiento: (animal: UnidadGanadera) => void;
-  onAbrirBajaAnimal: (animal?: UnidadGanadera) => void;
+  onAbrirBajaAnimal: (
+    animal?: UnidadGanadera,
+    tipo?: 'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO',
+  ) => void;
 }
 
 type OrdenCenso = 'CROTAL' | 'NOMBRE' | 'EDAD' | 'DEL' | 'ULTIMO_PARTO';
@@ -120,6 +126,7 @@ export function VistaCenso({
   const [mostrarFormCorral, setMostrarFormCorral] = useState(false);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [mostrarMenuAlta, setMostrarMenuAlta] = useState(false);
+  const [mostrarMenuBaja, setMostrarMenuBaja] = useState(false);
   const [mensajeImport, setMensajeImport] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -373,7 +380,10 @@ export function VistaCenso({
         <div className="relative grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={() => setMostrarMenuAlta((v) => !v)}
+            onClick={() => {
+              setMostrarMenuAlta((v) => !v);
+              setMostrarMenuBaja(false);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0f3d2e] px-4 py-3 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#16523e]"
           >
             <Plus className="h-4 w-4 text-amber-300" />
@@ -381,7 +391,10 @@ export function VistaCenso({
           </button>
           <button
             type="button"
-            onClick={() => onAbrirBajaAnimal()}
+            onClick={() => {
+              setMostrarMenuBaja((v) => !v);
+              setMostrarMenuAlta(false);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-extrabold text-red-900 shadow-xs transition hover:bg-red-100"
           >
             <Minus className="h-4 w-4 text-red-700" />
@@ -390,17 +403,19 @@ export function VistaCenso({
         </div>
 
         {mostrarMenuAlta && (
-          <div className="grid grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3">
             <button
               type="button"
               onClick={() => {
                 setMostrarMenuAlta(false);
                 onAbrirNacimiento();
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0f3d2e] px-3 py-2 text-xs font-bold text-white"
+              className="group flex flex-col items-center gap-1.5 text-center"
             >
-              <Plus className="h-3.5 w-3.5 text-amber-300" />
-              Nacimiento
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0f3d2e] text-amber-300 shadow-xs transition group-hover:scale-105">
+                <Baby className="h-5 w-5" />
+              </span>
+              <span className="text-[11px] font-extrabold text-[#0f3d2e]">Nacimiento</span>
             </button>
             <button
               type="button"
@@ -408,11 +423,66 @@ export function VistaCenso({
                 setMostrarMenuAlta(false);
                 onAbrirCompra();
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-950"
+              className="group flex flex-col items-center gap-1.5 text-center"
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              Compra / Entrada
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-sky-300 bg-white text-sky-800 shadow-xs transition group-hover:scale-105">
+                <ShoppingCart className="h-5 w-5" />
+              </span>
+              <span className="text-[11px] font-extrabold text-sky-950">Compra</span>
             </button>
+          </div>
+        )}
+
+        {mostrarMenuBaja && (
+          <div className="grid grid-cols-4 gap-2 rounded-2xl border border-red-200 bg-red-50/60 p-3">
+            {(
+              [
+                {
+                  tipo: 'BAJA_MUERTE' as const,
+                  label: 'Muerte',
+                  icono: AlertTriangle,
+                  claseCirculo: 'bg-red-700 text-white',
+                },
+                {
+                  tipo: 'DESAPARICION' as const,
+                  label: 'Desaparición',
+                  icono: HelpCircle,
+                  claseCirculo: 'bg-amber-600 text-white',
+                },
+                {
+                  tipo: 'BAJA_VENTA' as const,
+                  label: 'Venta',
+                  icono: Euro,
+                  claseCirculo: 'bg-emerald-700 text-white',
+                },
+                {
+                  tipo: 'BAJA_MATADERO' as const,
+                  label: 'Matadero',
+                  icono: Truck,
+                  claseCirculo: 'bg-slate-700 text-white',
+                },
+              ] as const
+            ).map((opt) => {
+              const Icono = opt.icono;
+              return (
+                <button
+                  key={opt.tipo}
+                  type="button"
+                  onClick={() => {
+                    setMostrarMenuBaja(false);
+                    onAbrirBajaAnimal(undefined, opt.tipo);
+                  }}
+                  className="group flex flex-col items-center gap-1.5 text-center"
+                >
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center rounded-full shadow-xs transition group-hover:scale-105 ${opt.claseCirculo}`}
+                  >
+                    <Icono className="h-5 w-5" />
+                  </span>
+                  <span className="text-[11px] font-extrabold text-slate-900">{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

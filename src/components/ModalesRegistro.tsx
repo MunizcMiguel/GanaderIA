@@ -559,11 +559,13 @@ export function ModalCompra({
 export function ModalBaja({
   estado,
   animalPreseleccionado,
+  tipoBajaInicial,
   onCerrar,
   onGuardar,
 }: {
   estado: EstadoGanaderia;
   animalPreseleccionado?: UnidadGanadera;
+  tipoBajaInicial?: 'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO';
   onCerrar: () => void;
   onGuardar: (datos: {
     animalId: string;
@@ -588,9 +590,14 @@ export function ModalBaja({
   const [animalId, setAnimalId] = useState(animalPreseleccionado?.id || activos[0]?.id || '');
   const [tipoBaja, setTipoBaja] = useState<
     'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO'
-  >('BAJA_MUERTE');
+  >(tipoBajaInicial || 'BAJA_MUERTE');
   const [fechaBaja, setFechaBaja] = useState(hoyIso());
-  const [motivo, setMotivo] = useState('Muerte en explotación (recogida cadáver)');
+  const [motivo, setMotivo] = useState(() => {
+    if (tipoBajaInicial === 'DESAPARICION') return 'Animal desaparecido en explotación o pasto';
+    if (tipoBajaInicial === 'BAJA_VENTA') return 'Venta de vida / cebadero';
+    if (tipoBajaInicial === 'BAJA_MATADERO') return 'Desvieje a matadero';
+    return 'Muerte en explotación (recogida cadáver)';
+  });
   const [importeVentaEur, setImporteVentaEur] = useState('');
   const [pesoKg, setPesoKg] = useState('');
   const [destino, setDestino] = useState('');

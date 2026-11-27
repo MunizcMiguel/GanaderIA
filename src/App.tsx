@@ -173,6 +173,9 @@ export default function App() {
   const [modalBajaAnimal, setModalBajaAnimal] = useState<UnidadGanadera | 'SIN_PRESELECCION' | null>(
     null,
   );
+  const [tipoBajaInicial, setTipoBajaInicial] = useState<
+    'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO' | undefined
+  >(undefined);
   const [modalTratamiento, setModalTratamiento] = useState<UnidadGanadera | null>(null);
   const [modalConfig, setModalConfig] = useState(false);
 
@@ -1485,7 +1488,10 @@ export default function App() {
             onAbrirCompra={() => setModalCompra(true)}
             onAbrirLibrosOficiales={(libro = 'EXPLOTACION') => setModalLibros(libro)}
             onAbrirTratamiento={(a) => setModalTratamiento(a)}
-            onAbrirBajaAnimal={(a) => setModalBajaAnimal(a ?? 'SIN_PRESELECCION')}
+            onAbrirBajaAnimal={(a, tipo) => {
+              setTipoBajaInicial(tipo);
+              setModalBajaAnimal(a ?? 'SIN_PRESELECCION');
+            }}
           />
         )}
 
@@ -1655,7 +1661,11 @@ export default function App() {
           animalPreseleccionado={
             modalBajaAnimal === 'SIN_PRESELECCION' ? undefined : modalBajaAnimal
           }
-          onCerrar={() => setModalBajaAnimal(null)}
+          tipoBajaInicial={tipoBajaInicial}
+          onCerrar={() => {
+            setModalBajaAnimal(null);
+            setTipoBajaInicial(undefined);
+          }}
           onGuardar={registrarBaja}
         />
       )}
