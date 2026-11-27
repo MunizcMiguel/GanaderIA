@@ -431,6 +431,7 @@ export interface RegistroInseminacion {
   fechaInseminacion: string; // YYYY-MM-DD
   toro?: string;
   confirmadaGestacion: boolean;
+  fechaSecadoReal?: string; // YYYY-MM-DD
   estado: 'ACTIVA' | 'PARIDA' | 'FALLIDA';
   notas?: string;
 }

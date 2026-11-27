@@ -30,10 +30,14 @@ import { ModalBase } from './ModalBase';
 
 export function ModalNacimiento({
   estado,
+  madrePreseleccionada,
+  padrePreseleccionado,
   onCerrar,
   onGuardar,
 }: {
   estado: EstadoGanaderia;
+  madrePreseleccionada?: string;
+  padrePreseleccionado?: string;
   onCerrar: () => void;
   onGuardar: (datos: {
     crotal: string;
@@ -58,8 +62,8 @@ export function ModalNacimiento({
   const machos = estado.animales.filter((a) => a.estado === 'ACTIVO' && a.sexo === 'M');
 
   const [crotal, setCrotal] = useState(sugerido);
-  const [crotalMadre, setCrotalMadre] = useState(madres[0]?.crotal || '');
-  const [padreNombre, setPadreNombre] = useState('');
+  const [crotalMadre, setCrotalMadre] = useState(madrePreseleccionada || madres[0]?.crotal || '');
+  const [padreNombre, setPadreNombre] = useState(padrePreseleccionado || '');
   const [sexo, setSexo] = useState<SexoAnimal>('H');
   const [raza, setRaza] = useState(razas[0] || 'Frisona (Holstein)');
   const [razaLibre, setRazaLibre] = useState('');

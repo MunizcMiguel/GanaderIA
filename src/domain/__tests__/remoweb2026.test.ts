@@ -4,6 +4,10 @@ import { validarCrotalBovinoAsturias2026 } from '../crotales';
 import { generarPaqueteRemoWebJson, generarXmlSitranBorrador } from '../exportadores';
 import { hoyIso, sumarDiasIso } from '../fechas';
 import {
+  calcularCalendarioReproductivo,
+  detectarVacasAbiertas,
+} from '../reproduccion';
+import {
   validarGuiaSalidaRemoWeb,
   validarModalidadMuerteRemoWeb,
   validarPrecondicionesNacimientoRemoWeb,
@@ -96,5 +100,43 @@ describe('Normativa RemoWeb Asturias 2026 y SITRAN', () => {
     expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
     expect(xml).toContain('<SITRAN_BORRADOR_COMUNICACION');
     expect(xml).toContain(`<CodigoREGA>${demo.explotacion.codigoRega}</CodigoREGA>`);
+  });
+
+  it('detecta ventana de retorno a celo (18-24d) y vacas abiertas (>60d sin cubrir)', () => {
+    const demo = crearDatosDemoAsturias();
+    const hoy = hoyIso();
+    const vaca = demo.animales.find((a) => a.estado === 'ACTIVO' && a.sexo === 'H')!;
+
+    const hitos = calcularCalendarioReproductivo(
+      [
+        {
+          id: 'ins-celo-test',
+          animalId: vaca.id,
+          crotal: vaca.crotal,
+          especie: 'BOVINO',
+          fechaInseminacion: sumarDiasIso(hoy, -21),
+          confirmadaGestacion: false,
+          estado: 'ACTIVA',
+        },
+      ],
+      demo.animales,
+      hoy,
+    );
+    expect(hitos[0]?.enVentanaCelo21d).toBe(true);
+
+    const abiertas = detectarVacasAbiertas(
+      [
+        {
+          ...vaca,
+          id: 'vaca-abierta-test',
+          fechaUltimoParto: sumarDiasIso(hoy, -75),
+        },
+      ],
+      [],
+      hoy,
+      60,
+    );
+    expect(abiertas.length).toBe(1);
+    expect(abiertas[0]?.diasEnLeche).toBe(75);
   });
 });

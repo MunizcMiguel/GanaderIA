@@ -165,6 +165,9 @@ export default function App() {
   const [drawerAnimalGlobalId, setDrawerAnimalGlobalId] = useState<string | null>(null);
 
   const [modalNacimiento, setModalNacimiento] = useState(false);
+  const [datosPreNacimiento, setDatosPreNacimiento] = useState<
+    { crotalMadre?: string; padreNombre?: string } | undefined
+  >(undefined);
   const [modalCompra, setModalCompra] = useState(false);
   const [modalLibros, setModalLibros] = useState<'EXPLOTACION' | 'TRATAMIENTOS' | null>(null);
   const [modalVoz, setModalVoz] = useState(false);
@@ -1696,13 +1699,48 @@ export default function App() {
               }));
               mostrarToast('Gestación marcada como confirmada.');
             }}
+            onMarcarFallida={(insId) => {
+              setEstado((prev) => ({
+                ...prev,
+                inseminaciones: (prev.inseminaciones || []).map((i) =>
+                  i.id === insId ? { ...i, estado: 'FALLIDA' } : i,
+                ),
+              }));
+              mostrarToast('Cubrición marcada como vacía / fallida.');
+            }}
+            onMarcarSecada={(insId) => {
+              const hoy = hoyIso();
+              const ins = (estado.inseminaciones || []).find((i) => i.id === insId);
+              setEstado((prev) => {
+                const corralSecas = obtenerCorralesActivos(prev).find((c) =>
+                  c.nombre.toLowerCase().includes('seca'),
+                );
+                return {
+                  ...prev,
+                  inseminaciones: (prev.inseminaciones || []).map((i) =>
+                    i.id === insId ? { ...i, fechaSecadoReal: hoy } : i,
+                  ),
+                  animales:
+                    ins && corralSecas
+                      ? prev.animales.map((a) =>
+                          a.id === ins.animalId ? { ...a, corralId: corralSecas.id } : a,
+                        )
+                      : prev.animales,
+                };
+              });
+              mostrarToast('Vaca marcada como secada.');
+            }}
             onMarcarParida={(insId) => {
+              const ins = (estado.inseminaciones || []).find((i) => i.id === insId);
               setEstado((prev) => ({
                 ...prev,
                 inseminaciones: (prev.inseminaciones || []).map((i) =>
                   i.id === insId ? { ...i, estado: 'PARIDA' } : i,
                 ),
               }));
+              setDatosPreNacimiento(
+                ins ? { crotalMadre: ins.crotal, padreNombre: ins.toro } : undefined,
+              );
               setModalNacimiento(true);
             }}
           />
@@ -1840,8 +1878,16 @@ export default function App() {
       {modalNacimiento && (
         <ModalNacimiento
           estado={estado}
-          onCerrar={() => setModalNacimiento(false)}
-          onGuardar={registrarNacimiento}
+          madrePreseleccionada={datosPreNacimiento?.crotalMadre}
+          padrePreseleccionado={datosPreNacimiento?.padreNombre}
+          onCerrar={() => {
+            setModalNacimiento(false);
+            setDatosPreNacimiento(undefined);
+          }}
+          onGuardar={(datos) => {
+            registrarNacimiento(datos);
+            setDatosPreNacimiento(undefined);
+          }}
         />
       )}
 

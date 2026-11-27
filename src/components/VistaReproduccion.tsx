@@ -1,8 +1,24 @@
-import { AlertTriangle, Baby, CalendarHeart, CheckCircle2, Plus, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  Baby,
+  CalendarHeart,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Droplets,
+  Plus,
+  Search,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { diferenciaDias, formatearFechaEs, hoyIso } from '../domain/fechas';
+import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import { calcularConsanguinidadPotencial } from '../domain/gestionAvanzada';
-import { calcularCalendarioReproductivo, GESTACION_DIAS } from '../domain/reproduccion';
+import {
+  calcularCalendarioReproductivo,
+  detectarVacasAbiertas,
+  GESTACION_DIAS,
+} from '../domain/reproduccion';
 import type { EstadoGanaderia } from '../domain/types';
 import { BadgeNivel } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
@@ -16,13 +32,20 @@ interface Props {
     confirmadaGestacion: boolean;
   }) => void;
   onConfirmarGestacion: (inseminacionId: string) => void;
+  onMarcarFallida?: (inseminacionId: string) => void;
+  onMarcarSecada?: (inseminacionId: string) => void;
   onMarcarParida: (inseminacionId: string) => void;
 }
+
+type FiltroIcono = 'TODAS' | 'PEND_ECO' | 'SECAR' | 'PARTOS';
+type VistaTab = 'EN_CURSO' | 'ABIERTAS' | 'HISTORIAL';
 
 export function VistaReproduccion({
   estado,
   onAnadirInseminacion,
   onConfirmarGestacion,
+  onMarcarFallida,
+  onMarcarSecada,
   onMarcarParida,
 }: Props) {
   const hoy = hoyIso();
@@ -35,10 +58,87 @@ export function VistaReproduccion({
   const [toro, setToro] = useState('');
   const [confirmada, setConfirmada] = useState(false);
 
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroIcono, setFiltroIcono] = useState<FiltroIcono>('TODAS');
+  const [vistaTab, setVistaTab] = useState<VistaTab>('EN_CURSO');
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
+
   const hitos = useMemo(
     () => calcularCalendarioReproductivo(estado.inseminaciones, estado.animales, hoy),
     [estado.inseminaciones, estado.animales, hoy],
   );
+
+  const vacasAbiertas = useMemo(
+    () => detectarVacasAbiertas(estado.animales, estado.inseminaciones, hoy, 60),
+    [estado.animales, estado.inseminaciones, hoy],
+  );
+
+  const historial = useMemo(
+    () =>
+      (estado.inseminaciones || [])
+        .filter((i) => i.estado === 'PARIDA' || i.estado === 'FALLIDA')
+        .sort((a, b) => b.fechaInseminacion.localeCompare(a.fechaInseminacion)),
+    [estado.inseminaciones],
+  );
+
+  const contadores = useMemo(() => {
+    const pendEco = hitos.filter((h) => !h.confirmadaGestacion).length;
+    const secar = hitos.filter(
+      (h) =>
+        !h.fechaSecadoReal &&
+        h.diasHastaSecado !== undefined &&
+        h.diasHastaSecado >= -7 &&
+        h.diasHastaSecado <= 15,
+    ).length;
+    const partos = hitos.filter((h) => h.diasHastaParto <= 15).length;
+    return { todas: hitos.length, pendEco, secar, partos };
+  }, [hitos]);
+
+  const hitosFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return hitos.filter((h) => {
+      if (filtroIcono === 'PEND_ECO' && h.confirmadaGestacion) return false;
+      if (
+        filtroIcono === 'SECAR' &&
+        (Boolean(h.fechaSecadoReal) ||
+          h.diasHastaSecado === undefined ||
+          h.diasHastaSecado < -7 ||
+          h.diasHastaSecado > 15)
+      ) {
+        return false;
+      }
+      if (filtroIcono === 'PARTOS' && h.diasHastaParto > 15) return false;
+      if (!q) return true;
+      return (
+        h.crotal.toLowerCase().includes(q) ||
+        h.numeroCorto.toLowerCase().includes(q) ||
+        (h.nombre || '').toLowerCase().includes(q) ||
+        (h.toro || '').toLowerCase().includes(q)
+      );
+    });
+  }, [hitos, filtroIcono, busqueda]);
+
+  const abiertasFiltradas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return vacasAbiertas;
+    return vacasAbiertas.filter(
+      (v) =>
+        v.animal.crotal.toLowerCase().includes(q) ||
+        v.animal.numeroCorto.toLowerCase().includes(q) ||
+        (v.animal.nombre || '').toLowerCase().includes(q),
+    );
+  }, [vacasAbiertas, busqueda]);
+
+  const historialFiltrado = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return historial;
+    return historial.filter(
+      (i) =>
+        i.crotal.toLowerCase().includes(q) ||
+        (i.toro || '').toLowerCase().includes(q),
+    );
+  }, [historial, busqueda]);
 
   const hembraSeleccionada = useMemo(
     () => hembras.find((h) => h.id === animalId),
@@ -64,248 +164,496 @@ export function VistaReproduccion({
     });
     setToro('');
     setConfirmada(false);
+    setMostrarForm(false);
   };
 
   return (
-    <div className="animate-fade-up space-y-6">
-      <div className="card-surface rounded-2xl p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-800">
-            <CalendarHeart className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-extrabold text-[#0f1f18]">
-              Calendario Reproductivo Automático (Inseminaciones, Secados y Partos)
-            </h2>
-            <p className="mt-0.5 text-xs text-[#52655c]">
-              A partir de cada inseminación trazamos la línea completa de gestación: diagnóstico
-              (+35d), secado (-60d antes del parto) y parto previsto (+283d en vacuno).
-            </p>
-          </div>
+    <div className="animate-fade-up space-y-4">
+      {/* Cabecera: 4 iconos circulares de resumen/filtro + botón desplegable "+ Registrar Cubrición" */}
+      <div className="card-surface space-y-4 rounded-2xl p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-lg font-extrabold text-[#0f1f18]">
+            <CalendarHeart className="h-5 w-5 text-rose-700" />
+            Reproducción
+          </h2>
+          <button
+            type="button"
+            onClick={() => setMostrarForm((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-extrabold text-white shadow-xs hover:bg-[#16523e]"
+          >
+            <Plus className="h-4 w-4 text-amber-300" />
+            Registrar cubrición
+          </button>
         </div>
 
-        {/* Alta rápida inseminación */}
-        <form
-          onSubmit={handleSubmit}
-          className="mt-4 grid gap-3 rounded-2xl border border-[#e6ece2] bg-[#f8faf6] p-4 sm:grid-cols-4"
-        >
-          <label className="text-xs font-bold text-[#31453b]">
-            Hembra
-            <select
-              value={animalId}
-              onChange={(e) => setAnimalId(e.target.value)}
-              required
-              className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
-            >
-              {hembras.map((h) => (
-                <option key={h.id} value={h.id}>
-                  #{h.numeroCorto} {h.nombre ? `(${h.nombre})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-bold text-[#31453b]">
-            Fecha inseminación
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              required
-              className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
-            />
-          </label>
-          <label className="text-xs font-bold text-[#31453b]">
-            Toro / Dosis (opcional)
-            <input
-              type="text"
-              placeholder="Ej: ASCOL Capitán"
-              value={toro}
-              onChange={(e) => setToro(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
-            />
-          </label>
-          <div className="flex flex-col justify-between gap-2">
-            <label className="flex items-center gap-1.5 text-xs font-semibold text-[#31453b]">
-              <input
-                type="checkbox"
-                checked={confirmada}
-                onChange={(e) => setConfirmada(e.target.checked)}
-                className="h-3.5 w-3.5 accent-emerald-700"
-              />
-              Gestación ya confirmada
-            </label>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#16523e]"
-            >
-              <Plus className="h-4 w-4 text-amber-300" />
-              Registrar cubrición
-            </button>
-          </div>
-        </form>
+        {/* 4 Iconos circulares en fila con filtro en 1 toque */}
+        <div className="grid grid-cols-4 gap-2">
+          {(
+            [
+              {
+                id: 'TODAS' as FiltroIcono,
+                label: 'Activas',
+                count: contadores.todas,
+                colorBadge: 'bg-emerald-600',
+                Icono: CalendarHeart,
+              },
+              {
+                id: 'PEND_ECO' as FiltroIcono,
+                label: 'Pend. Eco',
+                count: contadores.pendEco,
+                colorBadge: contadores.pendEco > 0 ? 'bg-sky-600' : 'bg-emerald-600',
+                Icono: Search,
+              },
+              {
+                id: 'SECAR' as FiltroIcono,
+                label: 'Secar pronto',
+                count: contadores.secar,
+                colorBadge: contadores.secar > 0 ? 'bg-orange-500' : 'bg-emerald-600',
+                Icono: Droplets,
+              },
+              {
+                id: 'PARTOS' as FiltroIcono,
+                label: 'Partos ≤15d',
+                count: contadores.partos,
+                colorBadge: contadores.partos > 0 ? 'bg-red-600' : 'bg-emerald-600',
+                Icono: Baby,
+              },
+            ] as const
+          ).map((item) => {
+            const activo = vistaTab === 'EN_CURSO' && filtroIcono === item.id;
+            const Icono = item.Icono;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setVistaTab('EN_CURSO');
+                  setFiltroIcono(activo && item.id !== 'TODAS' ? 'TODAS' : item.id);
+                }}
+                className="group flex flex-col items-center gap-1.5 text-center"
+              >
+                <div
+                  className={`relative flex h-14 w-14 items-center justify-center rounded-full border-2 bg-[#f8faf6] text-[#0f3d2e] shadow-xs transition group-hover:scale-105 ${
+                    activo
+                      ? 'border-[#0f3d2e] ring-2 ring-emerald-300'
+                      : 'border-[#dce4d6]'
+                  }`}
+                >
+                  <Icono className="h-6 w-6" />
+                  <span
+                    className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${item.colorBadge}`}
+                  >
+                    {item.count}
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-bold ${
+                    activo ? 'text-[#0f3d2e]' : 'text-[#4a5d54]'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Verificación automática de consanguinidad en vivo al elegir toro */}
-        {alertaConsanguinidad && (
-          <div
-            className={`mt-3 flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
-              alertaConsanguinidad.nivelRiesgo === 'ALTO'
-                ? 'border-red-300 bg-red-50 text-red-900'
-                : alertaConsanguinidad.nivelRiesgo === 'MEDIO'
-                  ? 'border-amber-300 bg-amber-50 text-amber-950'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-900'
-            }`}
+        {/* Formulario desplegable de alta rápida */}
+        {mostrarForm && (
+          <form
+            onSubmit={handleSubmit}
+            className="grid gap-3 rounded-2xl border border-emerald-200 bg-[#f8faf6] p-4 sm:grid-cols-4"
           >
-            {alertaConsanguinidad.nivelRiesgo === 'BAJO' ? (
-              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" />
-            ) : (
-              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+            <label className="text-xs font-bold text-[#31453b]">
+              Hembra
+              <select
+                value={animalId}
+                onChange={(e) => setAnimalId(e.target.value)}
+                required
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
+              >
+                {hembras.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    #{h.numeroCorto} {h.nombre ? `(${h.nombre})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-[#31453b]">
+              Fecha inseminación
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                required
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
+              />
+            </label>
+            <label className="text-xs font-bold text-[#31453b]">
+              Toro / Dosis (opcional)
+              <input
+                type="text"
+                placeholder="Ej: ASCOL Capitán"
+                value={toro}
+                onChange={(e) => setToro(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
+              />
+            </label>
+            <div className="flex flex-col justify-between gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-[#31453b]">
+                <input
+                  type="checkbox"
+                  checked={confirmada}
+                  onChange={(e) => setConfirmada(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-emerald-700"
+                />
+                Gestación ya confirmada
+              </label>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#16523e]"
+              >
+                <Plus className="h-4 w-4 text-amber-300" />
+                Guardar cubrición
+              </button>
+            </div>
+
+            {alertaConsanguinidad && (
+              <div
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold sm:col-span-4 ${
+                  alertaConsanguinidad.nivelRiesgo === 'ALTO'
+                    ? 'border-red-300 bg-red-50 text-red-900'
+                    : alertaConsanguinidad.nivelRiesgo === 'MEDIO'
+                      ? 'border-amber-300 bg-amber-50 text-amber-950'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                }`}
+              >
+                {alertaConsanguinidad.nivelRiesgo === 'BAJO' ? (
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-700" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+                )}
+                <span>
+                  <strong>Consanguinidad:</strong> {alertaConsanguinidad.mensaje}
+                </span>
+              </div>
             )}
-            <span>
-              <strong>Consanguinidad estimada:</strong> {alertaConsanguinidad.mensaje}
-            </span>
-          </div>
+          </form>
         )}
       </div>
 
-      {/* Listado con barra visual de gestación de 283 días */}
-      <section className="card-surface overflow-hidden rounded-2xl">
-        <div className="border-b border-[#edf1e9] bg-[#fafbf8] px-5 py-4">
-          <h3 className="text-base font-extrabold text-[#0f1f18]">
-            Próximos hitos reproductivos ({hitos.length})
-          </h3>
+      {/* Buscador + Selector de bloque (En curso / Vacías >60d / Historial) */}
+      <div className="space-y-2.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#70857a]" />
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar vaca, crotal o toro..."
+            className="w-full rounded-xl border border-[#dce4d6] bg-white py-2.5 pl-10 pr-3 text-sm text-[#0f1f18] shadow-2xs focus:border-emerald-600 focus:outline-none"
+          />
         </div>
 
-        <div className="divide-y divide-[#eef2eb]">
-          {hitos.length === 0 ? (
-            <div className="py-10 text-center text-sm text-[#52655c]">
-              Sin inseminaciones activas registradas.
-            </div>
-          ) : (
-            hitos.map((h) => {
-              const totalDias = GESTACION_DIAS[estado.explotacion.especiePrincipal].gestacion;
-              const diasTranscurridos = Math.max(0, diferenciaDias(hoy, h.fechaInseminacion));
-              const pctHoy = Math.min(100, Math.max(2, Math.round((diasTranscurridos / totalDias) * 100)));
-              const pctEco = Math.round((35 / totalDias) * 100);
-              const pctSecado = Math.round(((totalDias - 60) / totalDias) * 100);
+        <div className="grid grid-cols-3 gap-1.5 rounded-2xl border border-[#e1e7dc] bg-white p-1.5 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setVistaTab('EN_CURSO')}
+            className={`rounded-xl py-2 transition ${
+              vistaTab === 'EN_CURSO'
+                ? 'bg-[#0f3d2e] text-white'
+                : 'text-[#4a5d54] hover:bg-[#f8faf6]'
+            }`}
+          >
+            En curso ({hitos.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setVistaTab('ABIERTAS')}
+            className={`rounded-xl py-2 transition ${
+              vistaTab === 'ABIERTAS'
+                ? 'bg-amber-600 text-white'
+                : 'text-[#4a5d54] hover:bg-[#f8faf6]'
+            }`}
+          >
+            Vacías &gt;60d ({vacasAbiertas.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setVistaTab('HISTORIAL')}
+            className={`rounded-xl py-2 transition ${
+              vistaTab === 'HISTORIAL'
+                ? 'bg-slate-800 text-white'
+                : 'text-[#4a5d54] hover:bg-[#f8faf6]'
+            }`}
+          >
+            Historial ({historial.length})
+          </button>
+        </div>
+      </div>
 
-              return (
-                <div key={h.inseminacionId} className="space-y-4 p-5 transition hover:bg-[#fafbf8]">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3.5">
-                      <CrotalVisual
-                        crotal={h.crotal}
-                        numeroCorto={h.numeroCorto}
-                        variante="badge"
-                      />
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base font-extrabold text-[#0f1f18]">
-                            {h.nombre || h.crotal}
-                          </span>
+      {/* Contenido según pestaña */}
+      {vistaTab === 'EN_CURSO' && (
+        <section className="card-surface overflow-hidden rounded-2xl">
+          <div className="divide-y divide-[#eef2eb]">
+            {hitosFiltrados.length === 0 ? (
+              <div className="py-10 text-center text-sm text-[#52655c]">
+                No hay cubriciones activas con ese filtro.
+              </div>
+            ) : (
+              hitosFiltrados.map((h) => {
+                const abierto = expandidoId === h.inseminacionId;
+                const params = GESTACION_DIAS[h.especie];
+                const totalDias = params.gestacion;
+                const pctHoy = Math.min(
+                  100,
+                  Math.max(2, Math.round((h.diasTranscurridos / totalDias) * 100)),
+                );
+                const pctEco = Math.round((params.diagnosticoDias / totalDias) * 100);
+                const pctSecado =
+                  params.secadoAntesParto > 0
+                    ? Math.round(((totalDias - params.secadoAntesParto) / totalDias) * 100)
+                    : null;
+
+                return (
+                  <div key={h.inseminacionId} className="transition hover:bg-[#fafbf8]">
+                    {/* Fila compacta */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setExpandidoId(abierto ? null : h.inseminacionId)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandidoId(abierto ? null : h.inseminacionId);
+                        }
+                      }}
+                      className="flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CrotalVisual
+                          crotal={h.crotal}
+                          numeroCorto={h.numeroCorto}
+                          variante="badge"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-extrabold text-[#0f1f18]">
+                              {h.nombre || `#${h.numeroCorto}`}
+                            </span>
+                            <span className="rounded-md bg-[#edf1e9] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#1f3329]">
+                              Día {h.diasTranscurridos}/{totalDias}
+                            </span>
+                            {h.confirmadaGestacion && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                                Preñada
+                              </span>
+                            )}
+                            {h.fechaSecadoReal && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                                Secada
+                              </span>
+                            )}
+                            {abierto ? (
+                              <ChevronUp className="h-4 w-4 text-[#52655c]" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-[#52655c]" />
+                            )}
+                          </div>
                           <BadgeNivel nivel={h.nivel} texto={h.etiquetaHito} />
-                          {h.confirmadaGestacion ? (
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                              Gestación confirmada
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-[#edf1e9] px-2.5 py-0.5 text-[11px] font-bold text-[#4a5d54]">
-                              Pend. ecografía
-                            </span>
-                          )}
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#52655c]">
-                          <span>
-                            Día <strong className="font-mono text-[#0f1f18]">{diasTranscurridos}</strong> /{' '}
-                            {totalDias}
-                          </span>
-                          {h.toro && (
-                            <span>
-                              Toro: <strong className="text-[#0f1f18]">{h.toro}</strong>
-                            </span>
+                      </div>
+
+                      <div
+                        className="flex flex-wrap gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {!h.confirmadaGestacion && (
+                          <button
+                            type="button"
+                            onClick={() => onConfirmarGestacion(h.inseminacionId)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Preñada
+                          </button>
+                        )}
+                        {!h.fechaSecadoReal &&
+                          h.diasHastaSecado !== undefined &&
+                          h.diasHastaSecado <= 15 &&
+                          onMarcarSecada && (
+                            <button
+                              type="button"
+                              onClick={() => onMarcarSecada(h.inseminacionId)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-950 hover:bg-amber-100"
+                            >
+                              <Droplets className="h-3.5 w-3.5" />
+                              Ya secada
+                            </button>
                           )}
-                          <span>
-                            Parto previsto:{' '}
-                            <strong className="text-[#0f1f18]">
-                              {formatearFechaEs(h.fechaPartoPrevisto)}
-                            </strong>
-                          </span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onMarcarParida(h.inseminacionId)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-[#0f3d2e] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#16523e]"
+                        >
+                          <Baby className="h-3.5 w-3.5 text-amber-300" />
+                          Ya parió
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {!h.confirmadaGestacion && (
-                        <button
-                          type="button"
-                          onClick={() => onConfirmarGestacion(h.inseminacionId)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Confirmar preñada
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onMarcarParida(h.inseminacionId)}
-                        className="inline-flex items-center gap-1 rounded-xl border border-[#dce4d6] bg-white px-3 py-1.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
-                      >
-                        <Baby className="h-3.5 w-3.5 text-emerald-700" />
-                        Ya parió (abrir alta)
-                      </button>
-                    </div>
-                  </div>
+                    {/* Detalle expandible: barra dinámica + fechas + botón Vacía/Fallida */}
+                    {abierto && (
+                      <div className="space-y-3 border-t border-[#eef2eb] bg-[#f8faf6] p-4">
+                        <div className="relative h-3 w-full rounded-full bg-[#e1e7dc]">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-400 transition-all"
+                            style={{ width: `${pctHoy}%` }}
+                          />
+                          <span
+                            className="absolute top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sky-500"
+                            style={{ left: `${pctEco}%` }}
+                          />
+                          {pctSecado !== null && (
+                            <span
+                              className="absolute top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-amber-600"
+                              style={{ left: `${pctSecado}%` }}
+                            />
+                          )}
+                          <span
+                            className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#0f3d2e] shadow-sm"
+                            style={{ left: `${pctHoy}%` }}
+                          />
+                        </div>
 
-                  {/* Barra visual de gestación de 283 días */}
-                  <div className="rounded-xl border border-[#e6ece2] bg-[#f8faf6] px-4 py-3">
-                    <div className="relative h-3 w-full rounded-full bg-[#e1e7dc]">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-amber-400 transition-all"
-                        style={{ width: `${pctHoy}%` }}
-                      />
-                      {/* Marcador Ecografía +35d */}
-                      <span
-                        className="absolute top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-sky-500"
-                        style={{ left: `${pctEco}%` }}
-                        title={`Ecografía (+35d): ${formatearFechaEs(h.fechaDiagnostico)}`}
-                      />
-                      {/* Marcador Secado -60d */}
-                      {h.fechaSecado && (
-                        <span
-                          className="absolute top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-amber-600"
-                          style={{ left: `${pctSecado}%` }}
-                          title={`Secado (-60d): ${formatearFechaEs(h.fechaSecado)}`}
-                        />
-                      )}
-                      {/* Pin de HOY */}
-                      <span
-                        className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#0f3d2e] shadow-sm"
-                        style={{ left: `${pctHoy}%` }}
-                        title={`Hoy: día ${diasTranscurridos}`}
-                      />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#52655c]">
-                      <span>
-                        Insem. <strong className="text-[#0f1f18]">{formatearFechaEs(h.fechaInseminacion)}</strong>
-                      </span>
-                      <span className="text-sky-800">
-                        Eco (+35d): <strong>{formatearFechaEs(h.fechaDiagnostico)}</strong>
-                      </span>
-                      {h.fechaSecado && (
-                        <span className="text-amber-900">
-                          Secado (-60d): <strong>{formatearFechaEs(h.fechaSecado)}</strong>
-                        </span>
-                      )}
-                      <span className="text-emerald-900">
-                        Parto: <strong>{formatearFechaEs(h.fechaPartoPrevisto)}</strong>
-                      </span>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-[#52655c] sm:grid-cols-4">
+                          <span>
+                            Insem.: <strong className="text-[#0f1f18]">{formatearFechaEs(h.fechaInseminacion)}</strong>
+                          </span>
+                          <span className="text-sky-800">
+                            Eco (+{params.diagnosticoDias}d): <strong>{formatearFechaEs(h.fechaDiagnostico)}</strong>
+                          </span>
+                          {h.fechaSecado && (
+                            <span className="text-amber-900">
+                              Secado (-{params.secadoAntesParto}d):{' '}
+                              <strong>
+                                {formatearFechaEs(h.fechaSecadoReal || h.fechaSecado)}
+                              </strong>
+                            </span>
+                          )}
+                          <span className="text-emerald-900">
+                            Parto: <strong>{formatearFechaEs(h.fechaPartoPrevisto)}</strong>
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e6ece2] pt-2.5 text-xs">
+                          <span className="text-[#52655c]">
+                            Toro: <strong className="text-[#0f1f18]">{h.toro || 'Sin indicar'}</strong>
+                          </span>
+                          {onMarcarFallida && (
+                            <button
+                              type="button"
+                              onClick={() => onMarcarFallida(h.inseminacionId)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-800 hover:bg-red-100"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Vacía / Repite celo
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      )}
+
+      {vistaTab === 'ABIERTAS' && (
+        <section className="card-surface overflow-hidden rounded-2xl">
+          <div className="divide-y divide-[#eef2eb]">
+            {abiertasFiltradas.length === 0 ? (
+              <div className="py-10 text-center text-sm font-semibold text-emerald-800">
+                No hay vacas paridas hace más de 60 días sin cubrir.
+              </div>
+            ) : (
+              abiertasFiltradas.map((v) => (
+                <div
+                  key={v.animal.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <CrotalVisual
+                      crotal={v.animal.crotal}
+                      numeroCorto={v.animal.numeroCorto}
+                      variante="badge"
+                    />
+                    <div>
+                      <p className="text-sm font-extrabold text-[#0f1f18]">
+                        {v.animal.nombre || `#${v.animal.numeroCorto}`}
+                      </p>
+                      <p className="text-xs text-amber-800">
+                        <strong>{v.diasEnLeche} DEL</strong> · Último parto{' '}
+                        {formatearFechaEs(v.ultimaFechaParto)}
+                      </p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnimalId(v.animal.id);
+                      setMostrarForm(true);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center gap-1 rounded-xl bg-[#0f3d2e] px-3 py-2 text-xs font-bold text-white"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-amber-300" />
+                    Cubrir ahora
+                  </button>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </section>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {vistaTab === 'HISTORIAL' && (
+        <section className="card-surface overflow-hidden rounded-2xl">
+          <div className="divide-y divide-[#eef2eb]">
+            {historialFiltrado.length === 0 ? (
+              <div className="py-10 text-center text-sm text-[#52655c]">
+                Todavía no hay cubriciones cerradas (paridas o fallidas).
+              </div>
+            ) : (
+              historialFiltrado.map((ins) => (
+                <div
+                  key={ins.id}
+                  className="flex flex-wrap items-center justify-between gap-2 p-4 text-xs"
+                >
+                  <div>
+                    <span className="font-mono font-bold text-[#0f1f18]">{ins.crotal}</span>
+                    <span className="ml-2 text-[#52655c]">
+                      Cubrición {formatearFechaEs(ins.fechaInseminacion)}
+                      {ins.toro ? ` · Toro: ${ins.toro}` : ''}
+                    </span>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${
+                      ins.estado === 'PARIDA'
+                        ? 'bg-emerald-100 text-emerald-900'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {ins.estado === 'PARIDA' ? 'Parida' : 'Vacía / Fallida'}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
