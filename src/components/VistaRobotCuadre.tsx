@@ -1,5 +1,7 @@
 import {
+  ArrowDownToLine,
   ArrowRight,
+  ArrowUpFromLine,
   CheckCircle2,
   CloudUpload,
   Download,
@@ -7,6 +9,7 @@ import {
   FileSpreadsheet,
   GitCompare,
   PlusCircle,
+  RefreshCw,
   Sparkles,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -51,6 +54,8 @@ export function VistaRobotCuadre({
     advertencias: string[];
   } | null>(null);
   const [justificantes, setJustificantes] = useState<Record<string, string>>({});
+  const [avisoSync, setAvisoSync] = useState<string | null>(null);
+  const colaPrincipadoRef = useRef<HTMLElement | null>(null);
 
   const reglas = obtenerReglasNormativas(
     estado.explotacion.comunidad,
@@ -143,8 +148,118 @@ export function VistaRobotCuadre({
     { num: 3, titulo: `Subir a ${reglas.portalNombre.split('/')[0].trim()}`, sub: `${pendientes.length} en cola` },
   ];
 
+  const handlePonerTodoAlDia = () => {
+    const incorporables = discrepancias.filter(
+      (d) => d.tipo !== 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT',
+    );
+    if (incorporables.length > 0) {
+      incorporables.forEach((d) => onIncorporarDiscrepancia(d));
+      setDiscrepancias((prev) =>
+        prev.filter((d) => d.tipo === 'ACTIVA_PRINCIPADO_AUSENTE_ROBOT'),
+      );
+      setAvisoSync(
+        `¡Listo! Se han pasado ${incorporables.length} aviso(s) del robot a tu cuadra y a la cola del Principado.`,
+      );
+      return;
+    }
+
+    if (pendientes.length > 0) {
+      colaPrincipadoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setAvisoSync(
+        `Tu cuadra y el robot ya coinciden. Tienes ${pendientes.length} trámite(s) abajo listos para enviar al Principado.`,
+      );
+      return;
+    }
+
+    setAvisoSync('¡Todo está al día! No hay diferencias pendientes entre el robot, tu cuadra y el Principado.');
+  };
+
   return (
     <div className="animate-fade-up space-y-6">
+      {/* 3 Acciones Principales del Robot (lenguaje claro, sin tecnicismos) */}
+      <section className="card-surface rounded-2xl p-5">
+        <div className="mb-4">
+          <h2 className="text-lg font-extrabold text-[#0f1f18]">
+            Conexión con tu Robot de Ordeño
+          </h2>
+          <p className="mt-0.5 text-xs text-[#52655c]">
+            Elige qué quieres hacer ahora con los datos de {estado.explotacion.marcaRobot}:
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300 shadow-xs transition group-hover:scale-105">
+              <ArrowDownToLine className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-[#0f1f18]">Traer del robot</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
+                Leer los partos, bajas y vacas que tiene apuntados el robot.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              descargarArchivo(
+                `ganaderia_robot_${estado.explotacion.codigoRega}_${hoyIso()}.ads`,
+                generarArchivoAdisParaRobot(estado),
+                'text/plain;charset=utf-8',
+              );
+              setAvisoSync(
+                'Archivo listo para llevar al ordenador del robot descargado correctamente.',
+              );
+            }}
+            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4 text-left transition hover:border-sky-500 hover:bg-sky-50"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-800 text-white shadow-xs transition group-hover:scale-105">
+              <ArrowUpFromLine className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-[#0f1f18]">Llevar al robot</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
+                Pasar al robot los nacimientos y cambios que apuntaste en la cuadra.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePonerTodoAlDia}
+            className="group flex flex-col items-start gap-2.5 rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4 text-left transition hover:border-amber-500 hover:bg-amber-50"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs transition group-hover:scale-105">
+              <RefreshCw className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-[#0f1f18]">Poner todo al día</p>
+              <p className="mt-0.5 text-xs leading-snug text-[#4a5d54]">
+                Revisar diferencias entre el robot, tu cuadra y el Principado de golpe.
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {avisoSync && (
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-900">
+            <span>{avisoSync}</span>
+            <button
+              type="button"
+              onClick={() => setAvisoSync(null)}
+              className="text-[11px] font-bold text-emerald-700 underline"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Indicador de flujo en 3 pasos */}
       <div className="card-surface grid gap-3 rounded-2xl p-4 sm:grid-cols-3">
         {pasosFlujo.map((p) => {
@@ -336,7 +451,7 @@ export function VistaRobotCuadre({
       </section>
 
       {/* Paso 3: Cola de Trámites Listos para Agroficina Virtual / RemoWeb */}
-      <section className="card-surface overflow-hidden rounded-2xl">
+      <section ref={colaPrincipadoRef} className="card-surface overflow-hidden rounded-2xl">
         <div className="flex flex-col gap-3 border-b border-[#edf1e9] bg-[#fafbf8] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-[#0f1f18]">
