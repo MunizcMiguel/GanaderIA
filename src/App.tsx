@@ -1292,7 +1292,7 @@ export default function App() {
     <span
       aria-hidden="true"
       className={`inline-flex items-center justify-center leading-none ${
-        simboloMiGanado.length > 2 ? 'text-[13px] tracking-tighter' : 'text-base'
+        simboloMiGanado.length > 2 ? 'text-[15px] tracking-tighter' : 'text-xl'
       } ${className || ''}`}
     >
       {simboloMiGanado}
@@ -1431,7 +1431,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f1] pb-24 lg:flex lg:pb-0">
+    <div className="min-h-screen bg-[#f4f6f1] pb-28 lg:flex lg:pb-0">
       {/* Sidebar escritorio limpia y agrupada */}
       <aside className="no-print sticky top-0 hidden h-screen w-68 shrink-0 flex-col border-r border-[#e1e7dc] bg-white lg:flex">
         <div className="border-b border-[#edf1e9] px-5 py-4">
@@ -1895,7 +1895,10 @@ export default function App() {
       />
 
       {/* Menú inferior móvil (sin Inicio ni Agenda, accesibles desde la cabecera superior) */}
-      <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-[#e1e7dc] bg-white/95 backdrop-blur-xs lg:hidden">
+      <nav
+        aria-label="Navegación principal"
+        className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t-2 border-[#d4ded0] bg-white shadow-[0_-4px_16px_rgba(15,61,46,0.08)] lg:hidden"
+      >
         {navItems
           .filter((item) => item.id !== 'panel' && item.id !== 'calendario')
           .map((item) => {
@@ -1906,34 +1909,36 @@ export default function App() {
                 key={item.id}
                 type="button"
                 onClick={() => setPestana(item.id)}
-                className={`relative flex min-w-[66px] flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold transition ${
-                  activo ? 'text-[#0f3d2e]' : 'text-[#6e8277]'
+                className={`relative flex min-h-[78px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2.5 text-xs font-extrabold transition active:scale-95 ${
+                  activo ? 'text-[#0f3d2e]' : 'text-[#3f5349]'
                 }`}
               >
-              <span
-                className={`flex h-7 w-10 items-center justify-center rounded-xl transition ${
-                  activo ? 'bg-emerald-100 text-[#0f3d2e]' : ''
-                }`}
-              >
-                <Icono className="h-4 w-4" />
-              </span>
-              <span>{item.corto}</span>
-              {item.badge !== undefined && (
                 <span
-                  className={`absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold text-white ${
-                    item.badgeColor === 'orange'
-                      ? 'bg-orange-500'
-                      : item.badgeColor === 'green'
-                        ? 'bg-emerald-600'
-                        : 'bg-red-600'
+                  className={`flex h-10 w-14 items-center justify-center rounded-2xl transition ${
+                    activo
+                      ? 'bg-[#0f3d2e] text-amber-300 shadow-xs'
+                      : 'bg-[#f2f5ef] text-[#2f453b]'
                   }`}
                 >
-                  {item.badge}
+                  <Icono className="h-6 w-6" />
                 </span>
-              )}
-            </button>
-          );
-        })}
+                <span className="leading-tight tracking-tight">{item.corto}</span>
+                {item.badge !== undefined && (
+                  <span
+                    className={`absolute right-1.5 top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1.5 font-mono text-[11px] font-extrabold text-white shadow-xs ${
+                      item.badgeColor === 'orange'
+                        ? 'bg-orange-500'
+                        : item.badgeColor === 'green'
+                          ? 'bg-emerald-600'
+                          : 'bg-red-600'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
       </nav>
 
       {/* Modales y Drawer global (desde Calendario) */}

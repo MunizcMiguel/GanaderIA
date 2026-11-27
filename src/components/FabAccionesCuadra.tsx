@@ -71,7 +71,7 @@ export function FabAccionesCuadra({
         />
       )}
 
-      <div className="no-print fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2.5 lg:bottom-6 lg:right-6">
+      <div className="no-print fixed bottom-24 right-4 z-40 flex flex-col items-end gap-2.5 lg:bottom-6 lg:right-6">
         {abierto && (
           <div className="animate-fade-up mb-1 flex flex-col items-end gap-2">
             {acciones.map((acc) => {
