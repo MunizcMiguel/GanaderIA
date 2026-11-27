@@ -149,7 +149,7 @@ describe('GanaderIA — Motor de Dominio SITRAN (Asturias)', () => {
     expect(discrepancias).toHaveLength(2);
 
     const json = JSON.parse(generarPaqueteRemoWebJson(demo));
-    expect(json.schemaVersion).toBe('ganaderia-remoweb-v1');
+    expect(json.schemaVersion).toBe('ganaderia-remoweb-v2');
     expect(json.explotacion.rega).toBe('ES330110001234');
     expect(json.tramitesPendientes.length).toBeGreaterThanOrEqual(2);
   });

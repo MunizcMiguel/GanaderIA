@@ -51,6 +51,9 @@ export function SubVistaSaneamientoBotiquin({
   const [fechaSan, setFechaSan] = useState(hoy);
   const [fechaProximaSan, setFechaProximaSan] = useState(sumarDiasIso(hoy, 365));
   const [vetSan, setVetSan] = useState(estado.veterinarios?.[0] || '');
+  const [vacunaNombre, setVacunaNombre] = useState('');
+  const [serotipo, setSerotipo] = useState('');
+  const [loteVacuna, setLoteVacuna] = useState('');
   const [resultadosMap, setResultadosMap] = useState<Record<string, ResultadoSaneamiento>>({});
   const [notasSan, setNotasSan] = useState('');
 
@@ -71,6 +74,9 @@ export function SubVistaSaneamientoBotiquin({
       fecha: fechaSan,
       fechaProxima: fechaProximaSan || undefined,
       veterinario: vetSan.trim() || undefined,
+      vacunaNombre: vacunaNombre.trim() || undefined,
+      serotipo: serotipo.trim() || undefined,
+      loteVacuna: loteVacuna.trim() || undefined,
       resultados: activos.map((a) => ({
         animalId: a.id,
         crotal: a.crotal,
@@ -186,6 +192,41 @@ export function SubVistaSaneamientoBotiquin({
                 />
               </label>
             </div>
+
+            {(tipoSan === 'LENGUA_AZUL' || tipoSan === 'IBR' || tipoSan === 'BVD') && (
+              <div className="grid gap-2.5 rounded-xl border border-emerald-200 bg-white p-2.5 sm:grid-cols-3">
+                <label className="font-bold text-[#31453b]">
+                  Vacuna / Marca (RemoWeb)
+                  <input
+                    type="text"
+                    placeholder="Ej: Syvazul / BTVPUR"
+                    value={vacunaNombre}
+                    onChange={(e) => setVacunaNombre(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#dce4d6] px-2 py-1"
+                  />
+                </label>
+                <label className="font-bold text-[#31453b]">
+                  Serotipo
+                  <input
+                    type="text"
+                    placeholder="Ej: 1, 4, 8"
+                    value={serotipo}
+                    onChange={(e) => setSerotipo(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#dce4d6] px-2 py-1 font-mono"
+                  />
+                </label>
+                <label className="font-bold text-[#31453b]">
+                  Nº Lote vacuna
+                  <input
+                    type="text"
+                    placeholder="Ej: L-2026-98A"
+                    value={loteVacuna}
+                    onChange={(e) => setLoteVacuna(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#dce4d6] px-2 py-1 font-mono"
+                  />
+                </label>
+              </div>
+            )}
 
             <div>
               <p className="mb-1.5 font-bold text-[#31453b]">

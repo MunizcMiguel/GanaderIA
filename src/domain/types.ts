@@ -107,6 +107,11 @@ export interface CampanaSaneamiento {
   fecha: string; // YYYY-MM-DD
   fechaProxima?: string; // YYYY-MM-DD
   veterinario?: string;
+  numeroColegiadoVet?: string;
+  vacunaNombre?: string;
+  serotipo?: string;
+  marcaComercial?: string;
+  loteVacuna?: string;
   resultados: Array<{
     animalId: string;
     crotal: string;
@@ -221,12 +226,33 @@ export type TipoEvento =
   | 'NACIMIENTO'
   | 'COMPRA'
   | 'BAJA_MUERTE'
+  | 'DESAPARICION'
   | 'SALIDA_MATADERO'
   | 'SALIDA_MERCADO'
   | 'SALIDA_PASTOS'
   | 'VENTA'
   | 'DUPLICADO_CROTAL'
   | 'TRATAMIENTO';
+
+export type ModalidadMuerteRemoWeb =
+  | 'DAMER'
+  | 'INACCESIBLE'
+  | 'SACRIFICIO_URGENCIA'
+  | 'NECROFAGAS';
+
+export type MedioTransporteRemoWeb =
+  | 'CAMION'
+  | 'BARCO'
+  | 'TREN'
+  | 'AVION'
+  | 'CONDUCCION_A_PIE'
+  | 'OTROS';
+
+export type ProveedorCrotalRemoWeb = 'AZASA' | 'DATAMARS';
+
+export type FormaEnvioDuplicado = 'CORREO_ORDINARIO' | 'CORREO_CERTIFICADO';
+
+export type EstadoFocoSanitario = 'NINGUNO' | 'T3_RESTRICCION_RC' | 'TOTAL';
 
 export type OrigenEvento = 'MANUAL' | 'ROBOT_LELY' | 'ROBOT_DELAVAL' | 'ROBOT_CSV' | 'AGROFICINA_CSV';
 
@@ -255,6 +281,25 @@ export interface EventoTramite {
   fechaTramitado?: string;
   numeroJustificante?: string;
   crotalColocado?: boolean;
+  // Campos específicos RemoWeb Asturias (bajas, desapariciones, guías y duplicados)
+  modalidadMuerte?: ModalidadMuerteRemoWeb;
+  numeroDamer?: string;
+  fechaValidezDamer?: string;
+  ceaMatadero?: string;
+  concejo?: string;
+  lugarMuerte?: string;
+  tipoJustificacion?: string;
+  declaracionEnterramiento?: boolean;
+  presentaDenuncia?: boolean;
+  numeroDenuncia?: string;
+  medioTransporte?: MedioTransporteRemoWeb;
+  codigoSirentra?: string;
+  matriculaVehiculo?: string;
+  horaSalida?: string;
+  horaLlegada?: string;
+  proveedorCrotal?: ProveedorCrotalRemoWeb;
+  formaEnvio?: FormaEnvioDuplicado;
+  telefonoContacto?: string;
   notas?: string;
 }
 
@@ -293,6 +338,13 @@ export interface DatosExplotacion {
   orientacionProductiva?: OrientacionProductiva;
   marcaRobot: 'Lely Horizon/T4C' | 'DeLaval DelPro' | 'GEA DairyPlan' | 'Sin robot / Manual';
   umbralAlertaCrotales: number;
+  // Campos SITRAN / RemoWeb Asturias
+  telefonoContacto?: string;
+  codigoSirentraHabitual?: string;
+  codigoLetraQ?: string;
+  proveedorCrotalHabitual?: ProveedorCrotalRemoWeb;
+  calificacionSanitariaIbr?: string;
+  focoSanitarioActivo?: EstadoFocoSanitario;
 }
 
 export type NivelAlerta = 'CRITICA' | 'ATENCION' | 'OK';

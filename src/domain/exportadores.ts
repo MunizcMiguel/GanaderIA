@@ -91,13 +91,17 @@ export function generarCsvSolicitudDuplicados(estado: EstadoGanaderia): string {
 export function generarPaqueteRemoWebJson(estado: EstadoGanaderia): string {
   const pendientes: EventoTramite[] = estado.eventos.filter((e) => e.estadoTramite === 'PENDIENTE');
   const paquete = {
-    schemaVersion: 'ganaderia-remoweb-v1',
+    schemaVersion: 'ganaderia-remoweb-v2',
     generadoEn: new Date().toISOString(),
     explotacion: {
       rega: estado.explotacion.codigoRega,
       nombre: estado.explotacion.nombre,
       titular: estado.explotacion.titular,
       comunidad: estado.explotacion.comunidad,
+      municipio: estado.explotacion.municipio,
+      telefonoContacto: estado.explotacion.telefonoContacto ?? null,
+      codigoSirentraHabitual: estado.explotacion.codigoSirentraHabitual ?? null,
+      proveedorCrotalHabitual: estado.explotacion.proveedorCrotalHabitual ?? 'AZASA',
     },
     tramitesPendientes: pendientes.map((ev) => ({
       id: ev.id,
@@ -111,9 +115,134 @@ export function generarPaqueteRemoWebJson(estado: EstadoGanaderia): string {
       destino: ev.destino ?? null,
       codigoRegaDestino: ev.codigoRegaDestino ?? null,
       motivo: ev.motivo ?? null,
+      modalidadMuerte: ev.modalidadMuerte ?? null,
+      numeroDamer: ev.numeroDamer ?? null,
+      fechaValidezDamer: ev.fechaValidezDamer ?? null,
+      ceaMatadero: ev.ceaMatadero ?? null,
+      concejo: ev.concejo ?? null,
+      lugarMuerte: ev.lugarMuerte ?? null,
+      declaracionEnterramiento: ev.declaracionEnterramiento ?? null,
+      presentaDenuncia: ev.presentaDenuncia ?? null,
+      numeroDenuncia: ev.numeroDenuncia ?? null,
+      medioTransporte: ev.medioTransporte ?? null,
+      codigoSirentra: ev.codigoSirentra ?? null,
+      matriculaVehiculo: ev.matriculaVehiculo ?? null,
+      horaSalida: ev.horaSalida ?? null,
+      proveedorCrotal: ev.proveedorCrotal ?? estado.explotacion.proveedorCrotalHabitual ?? null,
+      formaEnvio: ev.formaEnvio ?? null,
+      telefonoContacto: ev.telefonoContacto ?? estado.explotacion.telefonoContacto ?? null,
     })),
   };
   return JSON.stringify(paquete, null, 2);
+}
+
+function escaparXml(valor: string | number | boolean | undefined | null): string {
+  const s = String(valor ?? '');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/**
+ * Borrador XML estructurado según el modelo de mensajería SITRAN / SIMOGAN / REMO (MAPA),
+ * preparado para integración por Web Services / pasarela con el Principado de Asturias.
+ */
+export function generarXmlSitranBorrador(estado: EstadoGanaderia): string {
+  const pendientes = estado.eventos.filter((e) => e.estadoTramite === 'PENDIENTE');
+  const nacimientos = pendientes.filter((e) => e.tipo === 'NACIMIENTO');
+  const bajasMuerte = pendientes.filter((e) => e.tipo === 'BAJA_MUERTE');
+  const desapariciones = pendientes.filter((e) => e.tipo === 'DESAPARICION');
+  const movimientos = pendientes.filter(
+    (e) =>
+      e.tipo === 'SALIDA_MATADERO' ||
+      e.tipo === 'SALIDA_MERCADO' ||
+      e.tipo === 'SALIDA_PASTOS' ||
+      e.tipo === 'VENTA',
+  );
+  const duplicados = pendientes.filter((e) => e.tipo === 'DUPLICADO_CROTAL');
+
+  const lineas: string[] = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<SITRAN_BORRADOR_COMUNICACION xmlns="urn:mapa:sitran:borrador:v1">',
+    '  <Cabecera>',
+    `    <CodigoREGA>${escaparXml(estado.explotacion.codigoRega)}</CodigoREGA>`,
+    `    <Explotacion>${escaparXml(estado.explotacion.nombre)}</Explotacion>`,
+    `    <Titular>${escaparXml(estado.explotacion.titular)}</Titular>`,
+    `    <ComunidadAutonoma>${escaparXml(estado.explotacion.comunidad)}</ComunidadAutonoma>`,
+    `    <FechaGeneracion>${escaparXml(new Date().toISOString())}</FechaGeneracion>`,
+    '  </Cabecera>',
+    '  <Nacimientos>',
+    ...nacimientos.map(
+      (n) =>
+        `    <Nacimiento id="${escaparXml(n.id)}">\n` +
+        `      <Especie>${escaparXml(n.especie)}</Especie>\n` +
+        `      <CrotalCria>${escaparXml(n.crotal)}</CrotalCria>\n` +
+        `      <CrotalMadre>${escaparXml(n.crotalMadre)}</CrotalMadre>\n` +
+        `      <Sexo>${escaparXml(n.sexo)}</Sexo>\n` +
+        `      <Raza>${escaparXml(n.raza)}</Raza>\n` +
+        `      <FechaNacimiento>${escaparXml(n.fechaEvento)}</FechaNacimiento>\n` +
+        '    </Nacimiento>',
+    ),
+    '  </Nacimientos>',
+    '  <BajasMuerte>',
+    ...bajasMuerte.map(
+      (b) =>
+        `    <BajaMuerte id="${escaparXml(b.id)}">\n` +
+        `      <Crotal>${escaparXml(b.crotal)}</Crotal>\n` +
+        `      <FechaBaja>${escaparXml(b.fechaEvento)}</FechaBaja>\n` +
+        `      <ModalidadRemoWeb>${escaparXml(b.modalidadMuerte || 'DAMER')}</ModalidadRemoWeb>\n` +
+        (b.numeroDamer ? `      <NumeroDAMER>${escaparXml(b.numeroDamer)}</NumeroDAMER>\n` : '') +
+        (b.ceaMatadero ? `      <CEAMatadero>${escaparXml(b.ceaMatadero)}</CEAMatadero>\n` : '') +
+        (b.concejo ? `      <Concejo>${escaparXml(b.concejo)}</Concejo>\n` : '') +
+        `      <Motivo>${escaparXml(b.motivo)}</Motivo>\n` +
+        '    </BajaMuerte>',
+    ),
+    '  </BajasMuerte>',
+    '  <Desapariciones>',
+    ...desapariciones.map(
+      (d) =>
+        `    <Desaparicion id="${escaparXml(d.id)}">\n` +
+        `      <Crotal>${escaparXml(d.crotal)}</Crotal>\n` +
+        `      <FechaDesaparicion>${escaparXml(d.fechaEvento)}</FechaDesaparicion>\n` +
+        `      <Concejo>${escaparXml(d.concejo)}</Concejo>\n` +
+        `      <Lugar>${escaparXml(d.lugarMuerte)}</Lugar>\n` +
+        `      <PresentaDenuncia>${d.presentaDenuncia ? 'SI' : 'NO'}</PresentaDenuncia>\n` +
+        (d.numeroDenuncia ? `      <NumeroDenuncia>${escaparXml(d.numeroDenuncia)}</NumeroDenuncia>\n` : '') +
+        '    </Desaparicion>',
+    ),
+    '  </Desapariciones>',
+    '  <MovimientosSalida>',
+    ...movimientos.map(
+      (m) =>
+        `    <Movimiento id="${escaparXml(m.id)}">\n` +
+        `      <Tipo>${escaparXml(m.tipo)}</Tipo>\n` +
+        `      <Crotal>${escaparXml(m.crotal)}</Crotal>\n` +
+        `      <FechaSalida>${escaparXml(m.fechaEvento)}</FechaSalida>\n` +
+        `      <Destino>${escaparXml(m.destino)}</Destino>\n` +
+        `      <REGADestino>${escaparXml(m.codigoRegaDestino)}</REGADestino>\n` +
+        `      <MedioTransporte>${escaparXml(m.medioTransporte || 'CAMION')}</MedioTransporte>\n` +
+        `      <CodigoSIRENTRA>${escaparXml(m.codigoSirentra)}</CodigoSIRENTRA>\n` +
+        `      <Matricula>${escaparXml(m.matriculaVehiculo)}</Matricula>\n` +
+        '    </Movimiento>',
+    ),
+    '  </MovimientosSalida>',
+    '  <DuplicadosCrotal>',
+    ...duplicados.map(
+      (dup) =>
+        `    <SolicitudDuplicado id="${escaparXml(dup.id)}">\n` +
+        `      <Crotal>${escaparXml(dup.crotal)}</Crotal>\n` +
+        `      <Proveedor>${escaparXml(dup.proveedorCrotal || estado.explotacion.proveedorCrotalHabitual || 'AZASA')}</Proveedor>\n` +
+        `      <FormaEnvio>${escaparXml(dup.formaEnvio || 'CORREO_ORDINARIO')}</FormaEnvio>\n` +
+        '    </SolicitudDuplicado>',
+    ),
+    '  </DuplicadosCrotal>',
+    '</SITRAN_BORRADOR_COMUNICACION>',
+  ];
+
+  return lineas.join('\n');
 }
 
 export function generarResumenTextoGuiaSalida(

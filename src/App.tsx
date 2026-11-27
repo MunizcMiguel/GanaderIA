@@ -381,22 +381,34 @@ export default function App() {
 
   const registrarBaja = (datos: {
     animalId: string;
-    tipoBaja?: 'BAJA_MUERTE' | 'BAJA_VENTA' | 'BAJA_MATADERO';
+    tipoBaja?: 'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO';
     fechaBaja: string;
     motivo: string;
     importeVentaEur?: number;
     pesoKg?: number;
     destino?: string;
+    modalidadMuerte?: 'DAMER' | 'INACCESIBLE' | 'SACRIFICIO_URGENCIA' | 'NECROFAGAS';
+    numeroDamer?: string;
+    fechaValidezDamer?: string;
+    ceaMatadero?: string;
+    concejo?: string;
+    lugarMuerte?: string;
+    declaracionEnterramiento?: boolean;
+    presentaDenuncia?: boolean;
+    numeroDenuncia?: string;
   }) => {
     const animal = estado.animales.find((a) => a.id === datos.animalId);
     if (!animal) return;
     const tipoBaja = datos.tipoBaja || 'BAJA_MUERTE';
+    const estadoAnimalFinal = tipoBaja === 'DESAPARICION' ? 'BAJA_MUERTE' : tipoBaja;
     const tipoEvento =
       tipoBaja === 'BAJA_VENTA'
         ? 'VENTA'
         : tipoBaja === 'BAJA_MATADERO'
           ? 'SALIDA_MATADERO'
-          : 'BAJA_MUERTE';
+          : tipoBaja === 'DESAPARICION'
+            ? 'DESAPARICION'
+            : 'BAJA_MUERTE';
 
     setEstado((prev) => ({
       ...prev,
@@ -404,7 +416,7 @@ export default function App() {
         a.id === datos.animalId
           ? {
               ...a,
-              estado: tipoBaja,
+              estado: estadoAnimalFinal,
               fechaBaja: datos.fechaBaja,
               motivoBaja: datos.motivo,
               precioVentaEur: datos.importeVentaEur ?? a.precioVentaEur,
@@ -423,6 +435,15 @@ export default function App() {
           motivo: datos.motivo,
           importeEur: datos.importeVentaEur,
           pesoKg: datos.pesoKg,
+          modalidadMuerte: datos.modalidadMuerte,
+          numeroDamer: datos.numeroDamer,
+          fechaValidezDamer: datos.fechaValidezDamer,
+          ceaMatadero: datos.ceaMatadero,
+          concejo: datos.concejo,
+          lugarMuerte: datos.lugarMuerte,
+          declaracionEnterramiento: datos.declaracionEnterramiento,
+          presentaDenuncia: datos.presentaDenuncia,
+          numeroDenuncia: datos.numeroDenuncia,
           origen: 'MANUAL',
           estadoTramite: 'PENDIENTE',
         },
@@ -696,6 +717,10 @@ export default function App() {
     codigoRegaDestino: string;
     fechaSalida: string;
     importeTotalEur?: number;
+    medioTransporte?: 'CAMION' | 'BARCO' | 'TREN' | 'AVION' | 'CONDUCCION_A_PIE' | 'OTROS';
+    codigoSirentra?: string;
+    matriculaVehiculo?: string;
+    horaSalida?: string;
   }) => {
     const elegidos = estado.animales.filter((a) => payload.animalIds.includes(a.id));
     const nuevoEstadoAnimal =
@@ -714,6 +739,10 @@ export default function App() {
       fechaEvento: payload.fechaSalida,
       destino: payload.destino,
       codigoRegaDestino: payload.codigoRegaDestino || undefined,
+      medioTransporte: payload.medioTransporte,
+      codigoSirentra: payload.codigoSirentra || undefined,
+      matriculaVehiculo: payload.matriculaVehiculo || undefined,
+      horaSalida: payload.horaSalida || undefined,
       importeEur:
         payload.importeTotalEur && elegidos.length > 0
           ? Number((payload.importeTotalEur / elegidos.length).toFixed(2))

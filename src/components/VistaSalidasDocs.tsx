@@ -17,7 +17,12 @@ import { useMemo, useState } from 'react';
 import { estaEnSupresionCarne, validarAnimalesParaSalida } from '../domain/alertas';
 import { generarResumenTextoGuiaSalida } from '../domain/exportadores';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
-import type { DocumentoExplotacion, EstadoGanaderia } from '../domain/types';
+import { validarGuiaSalidaRemoWeb } from '../domain/reglasRemoWeb';
+import type {
+  DocumentoExplotacion,
+  EstadoGanaderia,
+  MedioTransporteRemoWeb,
+} from '../domain/types';
 import { BotonCopiar } from './BadgeNivel';
 
 interface Props {
@@ -29,6 +34,10 @@ interface Props {
     codigoRegaDestino: string;
     fechaSalida: string;
     importeTotalEur?: number;
+    medioTransporte?: MedioTransporteRemoWeb;
+    codigoSirentra?: string;
+    matriculaVehiculo?: string;
+    horaSalida?: string;
   }) => void;
   onAnadirDocumento: (doc: DocumentoExplotacion) => void;
   onAbrirEscanerOcr: () => void;
@@ -50,6 +59,12 @@ export function VistaSalidasDocs({
   const [regaDestino, setRegaDestino] = useState('');
   const [fechaSalida, setFechaSalida] = useState(hoyIso());
   const [importeTotalEur, setImporteTotalEur] = useState('');
+  const [medioTransporte, setMedioTransporte] = useState<MedioTransporteRemoWeb>('CAMION');
+  const [codigoSirentra, setCodigoSirentra] = useState(
+    estado.explotacion.codigoSirentraHabitual || '',
+  );
+  const [matriculaVehiculo, setMatriculaVehiculo] = useState('');
+  const [horaSalida, setHoraSalida] = useState('08:00');
 
   const [docTitulo, setDocTitulo] = useState('');
   const [docCat, setDocCat] = useState<DocumentoExplotacion['categoria']>('SANEAMIENTO');
@@ -71,7 +86,21 @@ export function VistaSalidasDocs({
     [animalesElegidos, tipoSalida, fechaSalida],
   );
 
-  const hayBloqueos = validaciones.some((v) => !v.apto);
+  const avisosRemoWebGuia = useMemo(
+    () =>
+      validarGuiaSalidaRemoWeb(estado, animalesElegidos, {
+        fechaSalida,
+        codigoRegaDestino: regaDestino,
+        destino,
+        codigoSirentra,
+        esMatadero: tipoSalida === 'SALIDA_MATADERO',
+      }),
+    [estado, animalesElegidos, fechaSalida, regaDestino, destino, codigoSirentra, tipoSalida],
+  );
+
+  const hayBloqueos =
+    validaciones.some((v) => !v.apto) ||
+    avisosRemoWebGuia.some((a) => a.nivel === 'ERROR');
 
   const resumenGuia = useMemo(() => {
     if (animalesElegidos.length === 0) return '';
@@ -110,6 +139,10 @@ export function VistaSalidasDocs({
       codigoRegaDestino: regaDestino,
       fechaSalida,
       importeTotalEur: imp && imp > 0 ? imp : undefined,
+      medioTransporte,
+      codigoSirentra: codigoSirentra.trim().toUpperCase() || undefined,
+      matriculaVehiculo: matriculaVehiculo.trim().toUpperCase() || undefined,
+      horaSalida: horaSalida || undefined,
     });
     setSeleccionados([]);
     setImporteTotalEur('');
@@ -233,7 +266,67 @@ export function VistaSalidasDocs({
                 />
               </label>
             )}
+            <label className="text-xs font-bold text-[#31453b]">
+              Medio de transporte
+              <select
+                value={medioTransporte}
+                onChange={(e) => setMedioTransporte(e.target.value as MedioTransporteRemoWeb)}
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-3 py-2 text-xs font-semibold"
+              >
+                <option value="CAMION">Camión</option>
+                <option value="CONDUCCION_A_PIE">Conducción a pie</option>
+                <option value="BARCO">Barco</option>
+                <option value="TREN">Tren</option>
+                <option value="AVION">Avión</option>
+                <option value="OTROS">Otros</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold text-[#31453b]">
+              Código SIRENTRA vehículo
+              <input
+                type="text"
+                placeholder="ATES33000012345"
+                value={codigoSirentra}
+                onChange={(e) => setCodigoSirentra(e.target.value.toUpperCase())}
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-3 py-2 font-mono text-xs"
+              />
+            </label>
+            <label className="text-xs font-bold text-[#31453b]">
+              Matrícula / Bastidor
+              <input
+                type="text"
+                placeholder="1234-LMN"
+                value={matriculaVehiculo}
+                onChange={(e) => setMatriculaVehiculo(e.target.value.toUpperCase())}
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-3 py-2 font-mono text-xs"
+              />
+            </label>
+            <label className="text-xs font-bold text-[#31453b]">
+              Hora prevista salida
+              <input
+                type="time"
+                value={horaSalida}
+                onChange={(e) => setHoraSalida(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-3 py-2 text-xs"
+              />
+            </label>
           </div>
+
+          {avisosRemoWebGuia.length > 0 && (
+            <div className="mt-3 space-y-1 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs">
+              <p className="font-extrabold text-amber-950">
+                Pre-chequeo RemoWeb (plazos +8d/+5d, SIRENTRA y Lengua Azul):
+              </p>
+              {avisosRemoWebGuia.map((av) => (
+                <p
+                  key={av.codigo}
+                  className={av.nivel === 'ERROR' ? 'font-bold text-red-700' : 'text-amber-900'}
+                >
+                  • {av.mensaje}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Paso 2: Selector de animales con etiquetas preventivas */}

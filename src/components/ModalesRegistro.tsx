@@ -1,5 +1,5 @@
 import { Building2, Download, Pill, Plus, ShoppingCart, Upload, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { sugerirSiguienteCrotal } from '../domain/crotales';
 import { descargarArchivo } from '../domain/exportadores';
 import { hoyIso, sumarDiasIso } from '../domain/fechas';
@@ -9,13 +9,20 @@ import {
   sugerirRazaCruce,
 } from '../domain/gestionAvanzada';
 import { ESPECIES_META, PORTALES_CCAA } from '../domain/reglasNormativas';
+import {
+  validarModalidadMuerteRemoWeb,
+  validarPrecondicionesNacimientoRemoWeb,
+} from '../domain/reglasRemoWeb';
 import type {
   ComunidadCodigo,
   DatosExplotacion,
   DificultadParto,
   EspecieCodigo,
+  EstadoFocoSanitario,
   EstadoGanaderia,
+  ModalidadMuerteRemoWeb,
   OrientacionProductiva,
+  ProveedorCrotalRemoWeb,
   SexoAnimal,
   UnidadGanadera,
 } from '../domain/types';
@@ -69,6 +76,18 @@ export function ModalNacimiento({
       (m.nombre || '').toLowerCase() === padreNombre.trim().toLowerCase(),
   );
   const sugerenciaCruce = sugerirRazaCruce(madreSeleccionada?.raza, padreEnCenso?.raza);
+
+  const razaEvaluada = raza === '__OTRA__' && razaLibre.trim() ? razaLibre.trim() : raza;
+  const avisosRemoWeb = useMemo(
+    () =>
+      validarPrecondicionesNacimientoRemoWeb(estado, {
+        crotal,
+        crotalMadre,
+        raza: razaEvaluada,
+        fechaNacimiento,
+      }),
+    [estado, crotal, crotalMadre, razaEvaluada, fechaNacimiento],
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +261,31 @@ export function ModalNacimiento({
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none"
             />
           </label>
+
+          {avisosRemoWeb.length > 0 ? (
+            <div className="space-y-1.5 rounded-xl border border-amber-200 bg-amber-50/70 p-2.5 text-[11px]">
+              <p className="font-bold text-amber-950">
+                Pre-validación RemoWeb Asturias:
+              </p>
+              {avisosRemoWeb.map((av) => (
+                <p
+                  key={av.codigo}
+                  className={
+                    av.nivel === 'ERROR'
+                      ? 'font-semibold text-red-700'
+                      : 'text-amber-900'
+                  }
+                >
+                  • {av.nivel === 'ERROR' ? 'Bloqueo RemoWeb: ' : 'Aviso: '}
+                  {av.mensaje}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] font-semibold text-emerald-900">
+              ✓ Cumple pre-validaciones RemoWeb 2026 (crotal ES2203, madre &gt; 16m, plazo 90d).
+            </div>
+          )}
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -523,24 +567,71 @@ export function ModalBaja({
   onCerrar: () => void;
   onGuardar: (datos: {
     animalId: string;
-    tipoBaja: 'BAJA_MUERTE' | 'BAJA_VENTA' | 'BAJA_MATADERO';
+    tipoBaja: 'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO';
     fechaBaja: string;
     motivo: string;
     importeVentaEur?: number;
     pesoKg?: number;
     destino?: string;
+    modalidadMuerte?: ModalidadMuerteRemoWeb;
+    numeroDamer?: string;
+    fechaValidezDamer?: string;
+    ceaMatadero?: string;
+    concejo?: string;
+    lugarMuerte?: string;
+    declaracionEnterramiento?: boolean;
+    presentaDenuncia?: boolean;
+    numeroDenuncia?: string;
   }) => void;
 }) {
   const activos = estado.animales.filter((a) => a.estado === 'ACTIVO');
   const [animalId, setAnimalId] = useState(animalPreseleccionado?.id || activos[0]?.id || '');
-  const [tipoBaja, setTipoBaja] = useState<'BAJA_MUERTE' | 'BAJA_VENTA' | 'BAJA_MATADERO'>(
-    'BAJA_MUERTE',
-  );
+  const [tipoBaja, setTipoBaja] = useState<
+    'BAJA_MUERTE' | 'DESAPARICION' | 'BAJA_VENTA' | 'BAJA_MATADERO'
+  >('BAJA_MUERTE');
   const [fechaBaja, setFechaBaja] = useState(hoyIso());
   const [motivo, setMotivo] = useState('Muerte en explotación (recogida cadáver)');
   const [importeVentaEur, setImporteVentaEur] = useState('');
   const [pesoKg, setPesoKg] = useState('');
   const [destino, setDestino] = useState('');
+
+  // Campos oficiales RemoWeb para Baja por muerte y Desaparición
+  const [modalidadMuerte, setModalidadMuerte] = useState<ModalidadMuerteRemoWeb>('DAMER');
+  const [numeroDamer, setNumeroDamer] = useState('');
+  const [fechaValidezDamer, setFechaValidezDamer] = useState(hoyIso());
+  const [ceaMatadero, setCeaMatadero] = useState('ES33');
+  const [concejo, setConcejo] = useState(estado.explotacion.municipio || '');
+  const [lugarMuerte, setLugarMuerte] = useState('');
+  const [declaracionEnterramiento, setDeclaracionEnterramiento] = useState(false);
+  const [presentaDenuncia, setPresentaDenuncia] = useState(false);
+  const [numeroDenuncia, setNumeroDenuncia] = useState('');
+
+  const animalSeleccionado = activos.find((a) => a.id === animalId);
+  const avisosMuerte = useMemo(() => {
+    if (tipoBaja !== 'BAJA_MUERTE') return [];
+    return validarModalidadMuerteRemoWeb(estado, animalSeleccionado, {
+      modalidadMuerte,
+      fechaBaja,
+      numeroDamer,
+      fechaValidezDamer,
+      ceaMatadero,
+      concejo,
+      lugarMuerte,
+      declaracionEnterramiento,
+    });
+  }, [
+    tipoBaja,
+    estado,
+    animalSeleccionado,
+    modalidadMuerte,
+    fechaBaja,
+    numeroDamer,
+    fechaValidezDamer,
+    ceaMatadero,
+    concejo,
+    lugarMuerte,
+    declaracionEnterramiento,
+  ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -555,14 +646,46 @@ export function ModalBaja({
       importeVentaEur: imp && imp > 0 ? imp : undefined,
       pesoKg: peso && peso > 0 ? peso : undefined,
       destino: destino.trim() || undefined,
+      ...(tipoBaja === 'BAJA_MUERTE'
+        ? {
+            modalidadMuerte,
+            numeroDamer: modalidadMuerte === 'DAMER' ? numeroDamer.trim() || undefined : undefined,
+            fechaValidezDamer:
+              modalidadMuerte === 'DAMER' ? fechaValidezDamer || undefined : undefined,
+            ceaMatadero:
+              modalidadMuerte === 'SACRIFICIO_URGENCIA'
+                ? ceaMatadero.trim().toUpperCase() || undefined
+                : undefined,
+            concejo:
+              modalidadMuerte === 'INACCESIBLE' || modalidadMuerte === 'NECROFAGAS'
+                ? concejo.trim() || undefined
+                : undefined,
+            lugarMuerte:
+              modalidadMuerte === 'INACCESIBLE' || modalidadMuerte === 'NECROFAGAS'
+                ? lugarMuerte.trim() || undefined
+                : undefined,
+            declaracionEnterramiento:
+              modalidadMuerte === 'INACCESIBLE' || modalidadMuerte === 'NECROFAGAS'
+                ? declaracionEnterramiento
+                : undefined,
+          }
+        : {}),
+      ...(tipoBaja === 'DESAPARICION'
+        ? {
+            concejo: concejo.trim() || undefined,
+            lugarMuerte: lugarMuerte.trim() || undefined,
+            presentaDenuncia,
+            numeroDenuncia: presentaDenuncia ? numeroDenuncia.trim() || undefined : undefined,
+          }
+        : {}),
     });
   };
 
   return (
-    <ModalBase onCerrar={onCerrar} maxWidthClass="max-w-md">
-      <form onSubmit={handleSubmit} className="p-5">
+    <ModalBase onCerrar={onCerrar} maxWidthClass="max-w-lg">
+      <form onSubmit={handleSubmit} className="max-h-[90vh] overflow-y-auto p-5">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-900">Registrar Baja / Venta</h3>
+          <h3 className="text-base font-bold text-slate-900">Registrar Baja / Venta / Desaparición</h3>
           <button type="button" onClick={onCerrar} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
             <X className="h-5 w-5" />
           </button>
@@ -577,12 +700,14 @@ export function ModalBaja({
                 const t = e.target.value as typeof tipoBaja;
                 setTipoBaja(t);
                 if (t === 'BAJA_MUERTE') setMotivo('Muerte en explotación (recogida cadáver)');
+                if (t === 'DESAPARICION') setMotivo('Animal desaparecido en explotación o pasto');
                 if (t === 'BAJA_VENTA') setMotivo('Venta de vida / cebadero');
                 if (t === 'BAJA_MATADERO') setMotivo('Desvieje a matadero');
               }}
               className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
             >
               <option value="BAJA_MUERTE">Baja por muerte (plazo 7 días)</option>
+              <option value="DESAPARICION">Comunicación de animal desaparecido</option>
               <option value="BAJA_VENTA">Venta a comprador / cebadero</option>
               <option value="BAJA_MATADERO">Venta a matadero</option>
             </select>
@@ -615,7 +740,160 @@ export function ModalBaja({
             />
           </label>
 
-          {tipoBaja !== 'BAJA_MUERTE' && (
+          {tipoBaja === 'BAJA_MUERTE' && (
+            <div className="space-y-2.5 rounded-xl border border-red-200 bg-red-50/40 p-3">
+              <label className="block text-xs font-semibold text-slate-800">
+                Modalidad oficial RemoWeb
+                <select
+                  value={modalidadMuerte}
+                  onChange={(e) => setModalidadMuerte(e.target.value as ModalidadMuerteRemoWeb)}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold"
+                >
+                  <option value="DAMER">Entregado en planta (Nº DAMER)</option>
+                  <option value="INACCESIBLE">Muerto en lugar inaccesible</option>
+                  <option value="SACRIFICIO_URGENCIA">Sacrificio de urgencia (matadero)</option>
+                  <option value="NECROFAGAS">Zona de protección de necrófagas (&lt; 4 meses)</option>
+                </select>
+              </label>
+
+              {modalidadMuerte === 'DAMER' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Nº DAMER (máx. 9 dígitos)
+                    <input
+                      type="text"
+                      maxLength={9}
+                      placeholder="Ej: 123456789"
+                      value={numeroDamer}
+                      onChange={(e) => setNumeroDamer(e.target.value.replace(/\D/g, ''))}
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs"
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    Fecha validez DAMER
+                    <input
+                      type="date"
+                      value={fechaValidezDamer}
+                      onChange={(e) => setFechaValidezDamer(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {modalidadMuerte === 'SACRIFICIO_URGENCIA' && (
+                <label className="block text-xs font-semibold text-slate-700">
+                  C.E.A. Matadero (ES33 + municipio + secuencia)
+                  <input
+                    type="text"
+                    placeholder="ES330440000123"
+                    value={ceaMatadero}
+                    onChange={(e) => setCeaMatadero(e.target.value.toUpperCase())}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs"
+                  />
+                </label>
+              )}
+
+              {(modalidadMuerte === 'INACCESIBLE' || modalidadMuerte === 'NECROFAGAS') && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Concejo
+                      <input
+                        type="text"
+                        placeholder="Ej: Carreño"
+                        value={concejo}
+                        onChange={(e) => setConcejo(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      Lugar / Paraje
+                      <input
+                        type="text"
+                        placeholder="Ej: Monte Areo"
+                        value={lugarMuerte}
+                        onChange={(e) => setLugarMuerte(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                      />
+                    </label>
+                  </div>
+                  <label className="flex items-start gap-2 text-[11px] font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={declaracionEnterramiento}
+                      onChange={(e) => setDeclaracionEnterramiento(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-red-700"
+                    />
+                    Declaro bajo responsabilidad la imposibilidad de recogida / cumplimiento de normativa de enterramiento o zona necrófagas.
+                  </label>
+                </div>
+              )}
+
+              {avisosMuerte.length > 0 && (
+                <div className="space-y-1 rounded-lg bg-white/80 p-2 text-[11px]">
+                  {avisosMuerte.map((av) => (
+                    <p
+                      key={av.codigo}
+                      className={av.nivel === 'ERROR' ? 'font-semibold text-red-700' : 'text-amber-800'}
+                    >
+                      • {av.mensaje}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tipoBaja === 'DESAPARICION' && (
+            <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs font-semibold text-slate-700">
+                  Concejo
+                  <input
+                    type="text"
+                    placeholder="Ej: Carreño"
+                    value={concejo}
+                    onChange={(e) => setConcejo(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-700">
+                  Lugar / Pasto
+                  <input
+                    type="text"
+                    placeholder="Ej: Puerto / Braña"
+                    value={lugarMuerte}
+                    onChange={(e) => setLugarMuerte(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={presentaDenuncia}
+                  onChange={(e) => setPresentaDenuncia(e.target.checked)}
+                  className="h-4 w-4 accent-amber-700"
+                />
+                Presenta denuncia oficial
+              </label>
+              {presentaDenuncia && (
+                <label className="block text-xs font-semibold text-slate-700">
+                  Nº de denuncia
+                  <input
+                    type="text"
+                    placeholder="Ej: DEN-2026-00412"
+                    value={numeroDenuncia}
+                    onChange={(e) => setNumeroDenuncia(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs"
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
+          {(tipoBaja === 'BAJA_VENTA' || tipoBaja === 'BAJA_MATADERO') && (
             <div className="grid grid-cols-2 gap-2.5 rounded-xl bg-emerald-50/50 p-3">
               <label className="text-xs font-semibold text-slate-700">
                 Importe venta (€)
@@ -1222,6 +1500,69 @@ export function ModalConfiguracion({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2.5">
+            <p className="text-xs font-bold text-emerald-950">
+              Datos SITRAN / RemoWeb Asturias (guías, duplicados y pasarela)
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Código SIRENTRA habitual
+                <input
+                  type="text"
+                  placeholder="ATES33000012345"
+                  value={form.codigoSirentraHabitual || ''}
+                  onChange={(e) =>
+                    setForm({ ...form, codigoSirentraHabitual: e.target.value.toUpperCase() })
+                  }
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs"
+                />
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                Teléfono notificaciones
+                <input
+                  type="text"
+                  placeholder="600123456"
+                  value={form.telefonoContacto || ''}
+                  onChange={(e) => setForm({ ...form, telefonoContacto: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-mono text-xs"
+                />
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                Proveedor duplicados crotal
+                <select
+                  value={form.proveedorCrotalHabitual || 'AZASA'}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      proveedorCrotalHabitual: e.target.value as ProveedorCrotalRemoWeb,
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                >
+                  <option value="AZASA">AZASA (Asturias)</option>
+                  <option value="DATAMARS">DATAMARS</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-700">
+                Foco sanitario activo
+                <select
+                  value={form.focoSanitarioActivo || 'NINGUNO'}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      focoSanitarioActivo: e.target.value as EstadoFocoSanitario,
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs"
+                >
+                  <option value="NINGUNO">Sin foco activo</option>
+                  <option value="T3_RESTRICCION_RC">Foco T3 (nacimientos con RC - S20713)</option>
+                  <option value="TOTAL">Foco TOTAL (bloquea guías de salida)</option>
+                </select>
+              </label>
             </div>
           </div>
 

@@ -15,7 +15,11 @@ import {
   generarArchivoAdisParaRobot,
   generarCsvExportacionParaRobot,
 } from '../domain/exportadorRobotAdis';
-import { descargarArchivo, generarPaqueteRemoWebJson } from '../domain/exportadores';
+import {
+  descargarArchivo,
+  generarPaqueteRemoWebJson,
+  generarXmlSitranBorrador,
+} from '../domain/exportadores';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import { ejecutarCuadreRobotPrincipado, parsearCsvRobot } from '../domain/importadorRobot';
 import { obtenerReglasNormativas } from '../domain/reglasNormativas';
@@ -103,12 +107,23 @@ export function VistaRobotCuadre({
     );
   };
 
+  const handleDescargarXmlSitran = () => {
+    const xml = generarXmlSitranBorrador(estado);
+    descargarArchivo(
+      `borrador_sitran_${estado.explotacion.codigoRega}_${hoyIso()}.xml`,
+      xml,
+      'application/xml;charset=utf-8',
+    );
+  };
+
   const etiquetaTipo = (tipo: EventoTramite['tipo']) => {
     switch (tipo) {
       case 'NACIMIENTO':
         return 'Alta por Nacimiento';
       case 'BAJA_MUERTE':
         return 'Baja por Muerte';
+      case 'DESAPARICION':
+        return 'Desaparición';
       case 'SALIDA_MATADERO':
         return 'Guía Salida a Matadero';
       case 'SALIDA_MERCADO':
@@ -348,6 +363,15 @@ export function VistaRobotCuadre({
             >
               <Download className="h-4 w-4" />
               Descargar JSON
+            </button>
+            <button
+              type="button"
+              onClick={handleDescargarXmlSitran}
+              disabled={pendientes.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-3.5 py-2 text-xs font-bold text-sky-900 transition hover:bg-sky-100 disabled:opacity-40"
+            >
+              <Download className="h-4 w-4" />
+              XML SITRAN (Principado)
             </button>
             <a
               href={reglas.portalUrl}

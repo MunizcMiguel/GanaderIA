@@ -191,6 +191,57 @@ function inyectarAutorrellenoEnPagina(datos) {
       excluir: () => false,
     },
     {
+      valor: datos.numeroDamer,
+      coincide: (t) => t.includes('damer'),
+      excluir: (t) => t.includes('fecha') || t.includes('validez'),
+    },
+    {
+      valor: datos.fechaValidezDamer,
+      valorTexto: aFechaEs(datos.fechaValidezDamer),
+      coincide: (t) => t.includes('damer') && (t.includes('fecha') || t.includes('validez')),
+      excluir: () => false,
+    },
+    {
+      valor: datos.ceaMatadero,
+      coincide: (t) => t.includes('cea') || (t.includes('matadero') && t.includes('codigo')),
+      excluir: () => false,
+    },
+    {
+      valor: datos.concejo,
+      coincide: (t) => t.includes('concejo') || t.includes('municipio'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.lugarMuerte,
+      coincide: (t) => t.includes('lugar') || t.includes('paraje'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.numeroDenuncia,
+      coincide: (t) => t.includes('denuncia'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.codigoSirentra,
+      coincide: (t) => t.includes('sirentra') || t.includes('transportista'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.matriculaVehiculo,
+      coincide: (t) => t.includes('matricula') || t.includes('bastidor'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.medioTransporte,
+      coincide: (t) => t.includes('medio') && t.includes('transporte'),
+      excluir: () => false,
+    },
+    {
+      valor: datos.telefonoContacto,
+      coincide: (t) => t.includes('telefono') || t.includes('movil'),
+      excluir: () => false,
+    },
+    {
       valor: datos.motivo,
       coincide: (t) => t.includes('motivo') || t.includes('causa') || t.includes('observ'),
       excluir: () => false,

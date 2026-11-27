@@ -10,6 +10,44 @@ export function validarCrotalOficial(codigo: string): boolean {
   return /^[A-Z]{2}\d{12}$/.test(norm);
 }
 
+/**
+ * Desde el 01/01/2026 RemoWeb Asturias rechaza nacimientos bovinos con codificación antigua:
+ * debe comenzar por ES2203 seguido de exactamente 8 dígitos numéricos (14 caracteres).
+ */
+export function validarCrotalBovinoAsturias2026(
+  codigo: string,
+  fechaNacimiento?: string,
+): { valido: boolean; esSerieNueva2026: boolean; requiereSerie2026: boolean; motivo?: string } {
+  const norm = normalizarCrotal(codigo);
+  const esSerieNueva2026 = /^ES2203\d{8}$/.test(norm);
+  const requiereSerie2026 = !fechaNacimiento || fechaNacimiento >= '2026-01-01';
+
+  if (!validarCrotalOficial(norm)) {
+    return {
+      valido: false,
+      esSerieNueva2026: false,
+      requiereSerie2026,
+      motivo: 'El crotal debe tener 2 letras de país y 12 dígitos (ej. ES220300000001).',
+    };
+  }
+
+  if (requiereSerie2026 && !esSerieNueva2026) {
+    return {
+      valido: false,
+      esSerieNueva2026: false,
+      requiereSerie2026,
+      motivo:
+        'Desde 01/01/2026 RemoWeb Asturias exige codificación nueva ES2203 + 8 dígitos para nacimientos.',
+    };
+  }
+
+  return {
+    valido: true,
+    esSerieNueva2026,
+    requiereSerie2026,
+  };
+}
+
 export function extraerNumeroCorto(codigo: string): string {
   const norm = normalizarCrotal(codigo);
   if (norm.length <= 4) return norm;
