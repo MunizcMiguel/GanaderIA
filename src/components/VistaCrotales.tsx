@@ -9,7 +9,7 @@ import {
   Plus,
   Tag,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   contarCrotalesDisponibles,
   listarCrotalesDisponiblesEnLote,
@@ -36,7 +36,7 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
   const [origen, setOrigen] = useState('OCA / Agroficina Virtual');
   const [copiado, setCopiado] = useState(false);
   const [mostrarCajonDetalle, setMostrarCajonDetalle] = useState(false);
-  const formRemesaRef = useRef<HTMLFormElement | null>(null);
+  const [mostrarFormNuevaRemesa, setMostrarFormNuevaRemesa] = useState(false);
   const [margenAviso, setMargenAviso] = useState<number>(() => {
     try {
       const saved = window.localStorage.getItem('ganaderia_margen_crotales');
@@ -161,9 +161,8 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
       )}
 
       {/* Stock en cajón (icono circular) + Siguiente crotal (con copiar integrado) en paralelo */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="card-surface rounded-2xl p-4 sm:p-5 lg:col-span-7">
-          <div className="grid grid-cols-2 items-center gap-3">
+      <div className="card-surface rounded-2xl p-4 sm:p-5">
+        <div className="grid grid-cols-2 items-center gap-3">
             {/* Izquierda: Icono circular de crotales disponibles en el cajón (clic para desplegar remesas) */}
             <div className="flex flex-col items-center gap-2 text-center">
               <button
@@ -319,9 +318,7 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    formRemesaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
+                  onClick={() => setMostrarFormNuevaRemesa((v) => !v)}
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2.5 text-xs font-extrabold text-white hover:bg-[#16523e]"
                 >
                   <Plus className="h-4 w-4 text-amber-300" />
@@ -337,117 +334,75 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
+
+              {mostrarFormNuevaRemesa && (
+                <form
+                  onSubmit={(e) => {
+                    handleCrearLote(e);
+                    setMostrarFormNuevaRemesa(false);
+                  }}
+                  className="mt-2 space-y-3 rounded-xl border border-emerald-200 bg-[#f8faf6] p-4"
+                >
+                  <h4 className="text-xs font-extrabold text-[#0f1f18]">
+                    Registrar o añadir nueva remesa
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <label className="col-span-3 text-xs font-semibold text-[#31453b] sm:col-span-1">
+                      Prefijo
+                      <input
+                        type="text"
+                        value={prefijo}
+                        onChange={(e) => setPrefijo(e.target.value)}
+                        required
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:outline-none"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-[#31453b]">
+                      Desde nº
+                      <input
+                        type="number"
+                        min={1}
+                        value={desde}
+                        onChange={(e) => setDesde(e.target.value)}
+                        required
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:outline-none"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-[#31453b]">
+                      Hasta nº
+                      <input
+                        type="number"
+                        min={1}
+                        value={hasta}
+                        onChange={(e) => setHasta(e.target.value)}
+                        required
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:outline-none"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <label className="flex-1 text-xs font-semibold text-[#31453b]">
+                      Origen / Entrega
+                      <input
+                        type="text"
+                        value={origen}
+                        onChange={(e) => setOrigen(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs focus:border-emerald-600 focus:outline-none"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#0f3d2e] px-4 py-2 text-xs font-bold text-white hover:bg-[#16523e]"
+                    >
+                      <Plus className="h-4 w-4 text-amber-300" />
+                      Guardar remesa
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
-        </div>
-
-        {/* Alta rápida de nueva remesa */}
-        <form
-          ref={formRemesaRef}
-          onSubmit={handleCrearLote}
-          className="card-surface flex flex-col justify-between rounded-2xl p-5 lg:col-span-5"
-        >
-          <div>
-            <h3 className="text-sm font-extrabold text-[#0f1f18]">
-              Añadir nueva remesa de crotales
-            </h3>
-            <p className="mt-0.5 text-xs text-[#52655c]">
-              Registra el rango entregado por la OCA para control automático del cajón.
-            </p>
-            <div className="mt-3.5 grid grid-cols-3 gap-2.5">
-              <label className="col-span-3 text-xs font-semibold text-[#31453b] sm:col-span-1">
-                Prefijo
-                <input
-                  type="text"
-                  value={prefijo}
-                  onChange={(e) => setPrefijo(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
-                />
-              </label>
-              <label className="text-xs font-semibold text-[#31453b]">
-                Desde nº
-                <input
-                  type="number"
-                  min={1}
-                  value={desde}
-                  onChange={(e) => setDesde(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
-                />
-              </label>
-              <label className="text-xs font-semibold text-[#31453b]">
-                Hasta nº
-                <input
-                  type="number"
-                  min={1}
-                  value={hasta}
-                  onChange={(e) => setHasta(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 font-mono text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="flex-1 text-xs font-semibold text-[#31453b]">
-              Origen / Entrega
-              <input
-                type="text"
-                value={origen}
-                onChange={(e) => setOrigen(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-2 text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#0f3d2e] px-4 py-2 text-xs font-bold text-white hover:bg-[#16523e]"
-            >
-              <Plus className="h-4 w-4 text-amber-300" />
-              Guardar remesa
-            </button>
-          </div>
-        </form>
       </div>
-
-      {/* Remesas registradas */}
-      <section className="card-surface rounded-2xl p-5">
-        <h3 className="text-sm font-extrabold text-[#0f1f18]">Remesas registradas en cajón</h3>
-        <div className="mt-3 space-y-3">
-          {estado.lotesCrotales.map((lote) => {
-            const total = lote.hasta - lote.desde + 1;
-            const disponibles = listarCrotalesDisponiblesEnLote(lote);
-            const porcentajeLibre = Math.round((disponibles.length / total) * 100);
-            return (
-              <div
-                key={lote.id}
-                className="rounded-xl border border-[#e6ece2] bg-[#f8faf6] p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="font-mono text-sm font-extrabold text-[#0f1f18]">
-                      {lote.prefijo}
-                      {String(lote.desde).padStart(lote.digitosSecuencia, '0')} —{' '}
-                      {String(lote.hasta).padStart(lote.digitosSecuencia, '0')}
-                    </span>
-                    <p className="text-xs text-[#52655c]">{lote.origen}</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-extrabold text-emerald-900">
-                    {disponibles.length} / {total} libres ({porcentajeLibre}%)
-                  </span>
-                </div>
-                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[#e1e7dc]">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#14532d] to-emerald-500 transition-all"
-                    style={{ width: `${porcentajeLibre}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Lista de duplicados por pérdida o deterioro (AZASA / OCA) */}
       <section className="overflow-hidden rounded-2xl border border-amber-300/80 bg-white shadow-xs">
