@@ -32,7 +32,8 @@ interface Props {
       | 'crotales'
       | 'reproduccion'
       | 'salidas'
-      | 'analitica',
+      | 'analitica'
+      | 'gestion',
   ) => void;
   onAbrirNacimiento: () => void;
 }

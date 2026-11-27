@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Award,
   Baby,
   CalendarHeart,
   CheckCircle2,
@@ -22,9 +23,10 @@ import {
   detectarVacasAbiertas,
   GESTACION_DIAS,
 } from '../domain/reproduccion';
-import type { EstadoGanaderia } from '../domain/types';
+import type { EstadoGanaderia, UnidadGanadera } from '../domain/types';
 import { BadgeNivel } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
+import { SubVistaRankingMadres } from './SubVistaRankingMadres';
 
 interface Props {
   estado: EstadoGanaderia;
@@ -45,9 +47,10 @@ interface Props {
   onDeshacerSecada?: (inseminacionId: string) => void;
   onReabrirInseminacion?: (inseminacionId: string) => void;
   onMarcarParida: (inseminacionId: string) => void;
+  onAbrirFichaAnimal?: (animal: UnidadGanadera) => void;
 }
 
-type FiltroIcono = 'TODAS' | 'PEND_ECO' | 'SECAR' | 'PARTOS';
+type FiltroIcono = 'TODAS' | 'PEND_ECO' | 'SECAR' | 'PARTOS' | 'MADRES';
 type VistaTab = 'EN_CURSO' | 'ABIERTAS' | 'HISTORIAL';
 
 export function VistaReproduccion({
@@ -61,6 +64,7 @@ export function VistaReproduccion({
   onDeshacerSecada,
   onReabrirInseminacion,
   onMarcarParida,
+  onAbrirFichaAnimal,
 }: Props) {
   const hoy = hoyIso();
   const hembras = useMemo(
@@ -203,8 +207,8 @@ export function VistaReproduccion({
           </button>
         </div>
 
-        {/* 4 Iconos circulares en fila con filtro en 1 toque */}
-        <div className="grid grid-cols-4 gap-2">
+        {/* 5 Iconos circulares en fila con filtro en 1 toque (incluye Madres) */}
+        <div className="grid grid-cols-5 gap-1.5">
           {(
             [
               {
@@ -223,48 +227,62 @@ export function VistaReproduccion({
               },
               {
                 id: 'SECAR' as FiltroIcono,
-                label: 'Secar pronto',
+                label: 'Secar',
                 count: contadores.secar,
                 colorBadge: contadores.secar > 0 ? 'bg-orange-500' : 'bg-emerald-600',
                 Icono: Droplets,
               },
               {
                 id: 'PARTOS' as FiltroIcono,
-                label: 'Partos ≤15d',
+                label: 'Partos',
                 count: contadores.partos,
                 colorBadge: contadores.partos > 0 ? 'bg-red-600' : 'bg-emerald-600',
                 Icono: Baby,
               },
+              {
+                id: 'MADRES' as FiltroIcono,
+                label: 'Madres',
+                count: hembras.length,
+                colorBadge: 'bg-amber-600',
+                Icono: Award,
+              },
             ] as const
           ).map((item) => {
-            const activo = vistaTab === 'EN_CURSO' && filtroIcono === item.id;
+            const activo =
+              item.id === 'MADRES'
+                ? filtroIcono === 'MADRES'
+                : vistaTab === 'EN_CURSO' && filtroIcono === item.id;
             const Icono = item.Icono;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setVistaTab('EN_CURSO');
-                  setFiltroIcono(activo && item.id !== 'TODAS' ? 'TODAS' : item.id);
+                  if (item.id === 'MADRES') {
+                    setFiltroIcono(filtroIcono === 'MADRES' ? 'TODAS' : 'MADRES');
+                  } else {
+                    setVistaTab('EN_CURSO');
+                    setFiltroIcono(activo && item.id !== 'TODAS' ? 'TODAS' : item.id);
+                  }
                 }}
-                className="group flex flex-col items-center gap-1.5 text-center"
+                className="group flex flex-col items-center gap-1 text-center"
               >
                 <div
-                  className={`relative flex h-14 w-14 items-center justify-center rounded-full border-2 bg-[#f8faf6] text-[#0f3d2e] shadow-xs transition group-hover:scale-105 ${
+                  className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 bg-[#f8faf6] text-[#0f3d2e] shadow-xs transition group-hover:scale-105 sm:h-14 sm:w-14 ${
                     activo
                       ? 'border-[#0f3d2e] ring-2 ring-emerald-300'
                       : 'border-[#dce4d6]'
                   }`}
                 >
-                  <Icono className="h-6 w-6" />
+                  <Icono className="h-5 w-5 sm:h-6 sm:w-6" />
                   <span
-                    className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${item.colorBadge}`}
+                    className={`absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[10px] font-extrabold text-white shadow-xs sm:h-6 sm:min-w-6 sm:text-[11px] ${item.colorBadge}`}
                   >
                     {item.count}
                   </span>
                 </div>
                 <span
-                  className={`text-[11px] font-bold ${
+                  className={`text-[10px] font-bold leading-tight sm:text-[11px] ${
                     activo ? 'text-[#0f3d2e]' : 'text-[#4a5d54]'
                   }`}
                 >
@@ -359,6 +377,15 @@ export function VistaReproduccion({
         )}
       </div>
 
+      {/* Si está seleccionado el 5º icono circular "Madres", mostrar Ranking de Madres */}
+      {filtroIcono === 'MADRES' ? (
+        <SubVistaRankingMadres
+          estado={estado}
+          hoy={hoy}
+          onAbrirFichaAnimal={(a) => onAbrirFichaAnimal?.(a)}
+        />
+      ) : (
+        <>
       {/* Buscador + Selector de bloque (En curso / Vacías >60d / Historial) */}
       <div className="space-y-2.5">
         <div className="relative">
@@ -792,6 +819,8 @@ export function VistaReproduccion({
             )}
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   );

@@ -1,10 +1,7 @@
 import {
   AlertTriangle,
-  Award,
-  BarChart3,
   CheckCircle2,
   Droplets,
-  Euro,
   FileSpreadsheet,
   Printer,
   Search,
@@ -22,10 +19,7 @@ import {
 } from '../domain/analiticaGanadero';
 import { normalizarCrotal } from '../domain/crotales';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
-import {
-  calcularResumenCrecimientoRebano,
-  calcularUGMRebano,
-} from '../domain/gestionAvanzada';
+import { calcularResumenCrecimientoRebano } from '../domain/gestionAvanzada';
 import { detectarVacasProblema } from '../domain/incidencias';
 import type {
   CampanaSaneamiento,
@@ -38,11 +32,7 @@ import type {
 import { BotonCopiar } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
 import { ModalBase } from './ModalBase';
-import { SubVistaRankingMadres } from './SubVistaRankingMadres';
-import {
-  SubVistaEconomiaEvolucion,
-  SubVistaSaneamientoBotiquin,
-} from './SubVistaSaneamientoEconomia';
+import { SubVistaSaneamientoBotiquin } from './SubVistaSaneamientoEconomia';
 
 interface Props {
   estado: EstadoGanaderia;
@@ -50,12 +40,12 @@ interface Props {
   onRegistrarSaneamiento: (campana: CampanaSaneamiento) => void;
   onAnadirMedicamentoBotiquin: (med: MedicamentoBotiquin) => void;
   onEliminarMedicamentoBotiquin: (medId: string) => void;
-  onAnadirMovimientoEconomico: (mov: MovimientoEconomico) => void;
-  onAbrirLibrosOficiales: (libro?: 'EXPLOTACION' | 'TRATAMIENTOS') => void;
+  onAnadirMovimientoEconomico?: (mov: MovimientoEconomico) => void;
+  onAbrirLibrosOficiales?: (libro?: 'EXPLOTACION' | 'TRATAMIENTOS') => void;
   onAbrirFichaAnimal: (animal: UnidadGanadera) => void;
 }
 
-type SubTabAnalitica = 'RESUMEN' | 'MADRES' | 'SANEAMIENTO' | 'ECONOMIA';
+type SubTabVet = 'PROBLEMA' | 'ASCOL' | 'SANIDAD';
 
 export function VistaAnaliticaVet({
   estado,
@@ -63,13 +53,12 @@ export function VistaAnaliticaVet({
   onRegistrarSaneamiento,
   onAnadirMedicamentoBotiquin,
   onEliminarMedicamentoBotiquin,
-  onAnadirMovimientoEconomico,
   onAbrirFichaAnimal,
 }: Props) {
   const hoy = hoyIso();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [verParteVet, setVerParteVet] = useState(false);
-  const [subTab, setSubTab] = useState<SubTabAnalitica>('RESUMEN');
+  const [subTab, setSubTab] = useState<SubTabVet>('PROBLEMA');
   const [busquedaControl, setBusquedaControl] = useState('');
   const [soloRcsAlto, setSoloRcsAlto] = useState(false);
 
@@ -80,7 +69,6 @@ export function VistaAnaliticaVet({
     () => calcularResumenCrecimientoRebano(estado.animales, estado.pesajes),
     [estado.animales, estado.pesajes],
   );
-  const ugm = useMemo(() => calcularUGMRebano(estado.animales, hoy), [estado.animales, hoy]);
   const textoParteVet = useMemo(() => generarTextoParteVeterinario(estado, hoy), [estado, hoy]);
 
   // Último control lechero por vaca para la tabla ASCOL
@@ -128,15 +116,12 @@ export function VistaAnaliticaVet({
 
   return (
     <div className="animate-fade-up space-y-4">
-      {/* Cabecera compacta + 4 iconos circulares de navegación interna */}
+      {/* Cabecera compacta + 3 iconos circulares de Veterinario */}
       <section className="card-surface space-y-4 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-[#0f3d2e]" />
-            <h2 className="text-lg font-extrabold text-[#0f1f18]">Analítica y Vet</h2>
-            <span className="rounded-full bg-[#edf1e9] px-2 py-0.5 font-mono text-[10px] font-extrabold text-[#2b4036]">
-              {ugm.totalUgm} UGM
-            </span>
+            <Stethoscope className="h-5 w-5 text-[#0f3d2e]" />
+            <h2 className="text-lg font-extrabold text-[#0f1f18]">Veterinario</h2>
           </div>
 
           <button
@@ -149,33 +134,30 @@ export function VistaAnaliticaVet({
           </button>
         </div>
 
-        {/* 4 iconos circulares en fila */}
-        <div className="grid grid-cols-4 gap-2">
+        {/* 3 iconos circulares en fila */}
+        <div className="grid grid-cols-3 gap-2">
           {(
             [
               {
-                id: 'RESUMEN' as SubTabAnalitica,
-                label: 'Resumen',
-                Icon: BarChart3,
+                id: 'PROBLEMA' as SubTabVet,
+                label: 'Vacas Problema',
+                Icon: AlertTriangle,
                 badge: vacasProblema.length,
                 badgeColor: vacasProblema.length > 0 ? 'bg-red-600' : 'bg-emerald-600',
               },
               {
-                id: 'MADRES' as SubTabAnalitica,
-                label: 'Madres',
-                Icon: Award,
+                id: 'ASCOL' as SubTabVet,
+                label: 'Control ASCOL',
+                Icon: Droplets,
+                badge: metricas.rcsAltoCount,
+                badgeColor: metricas.rcsAltoCount > 0 ? 'bg-red-600' : 'bg-emerald-600',
               },
               {
-                id: 'SANEAMIENTO' as SubTabAnalitica,
-                label: 'Sanidad',
+                id: 'SANIDAD' as SubTabVet,
+                label: 'Sanidad / Botiquín',
                 Icon: ShieldCheck,
                 badge: totalSanidad,
                 badgeColor: 'bg-emerald-600',
-              },
-              {
-                id: 'ECONOMIA' as SubTabAnalitica,
-                label: 'Economía',
-                Icon: Euro,
               },
             ] as const
           ).map((item) => {
@@ -196,13 +178,11 @@ export function VistaAnaliticaVet({
                   }`}
                 >
                   <Icono className="h-6 w-6" />
-                  {'badge' in item && item.badge !== undefined && (
-                    <span
-                      className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${item.badgeColor}`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
+                  <span
+                    className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${item.badgeColor}`}
+                  >
+                    {item.badge}
+                  </span>
                 </div>
                 <span
                   className={`text-[11px] font-bold ${
@@ -217,15 +197,7 @@ export function VistaAnaliticaVet({
         </div>
       </section>
 
-      {subTab === 'MADRES' && (
-        <SubVistaRankingMadres
-          estado={estado}
-          hoy={hoy}
-          onAbrirFichaAnimal={onAbrirFichaAnimal}
-        />
-      )}
-
-      {subTab === 'SANEAMIENTO' && (
+      {subTab === 'SANIDAD' && (
         <SubVistaSaneamientoBotiquin
           estado={estado}
           hoy={hoy}
@@ -235,15 +207,7 @@ export function VistaAnaliticaVet({
         />
       )}
 
-      {subTab === 'ECONOMIA' && (
-        <SubVistaEconomiaEvolucion
-          estado={estado}
-          hoy={hoy}
-          onAnadirMovimientoEconomico={onAnadirMovimientoEconomico}
-        />
-      )}
-
-      {subTab === 'RESUMEN' && (
+      {subTab === 'PROBLEMA' && (
         <>
           {/* KPIs compactos 2x2 */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -406,9 +370,17 @@ export function VistaAnaliticaVet({
               )}
             </div>
           </section>
+        </>
+      )}
 
-          {/* Control Lechero ASCOL con buscador y filtro RCS >= 200k */}
-          {!esCarne && (
+      {/* Control Lechero ASCOL con buscador y filtro RCS >= 200k */}
+      {subTab === 'ASCOL' && (
+        <>
+          {esCarne ? (
+            <div className="card-surface rounded-2xl p-6 text-center text-xs text-[#52655c]">
+              La explotación está configurada en orientación Carne. El control lechero ASCOL aplica a orientación Leche o Mixta.
+            </div>
+          ) : (
             <section className="card-surface overflow-hidden rounded-2xl">
               <div className="flex flex-col gap-3 border-b border-[#edf1e9] bg-[#fafbf8] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2.5">

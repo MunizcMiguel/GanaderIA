@@ -77,7 +77,8 @@ interface Props {
       | 'crotales'
       | 'reproduccion'
       | 'salidas'
-      | 'analitica',
+      | 'analitica'
+      | 'gestion',
   ) => void;
   tabExterno?: TabCuadra;
   ocultarNavInferior?: boolean;

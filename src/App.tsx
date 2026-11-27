@@ -1,5 +1,5 @@
 import {
-  BarChart3,
+  Briefcase,
   Calendar,
   CalendarHeart,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Settings,
   Smartphone,
   Sprout,
+  Stethoscope,
   Tag,
   Truck,
   X,
@@ -35,6 +36,7 @@ import { VistaAnaliticaVet } from './components/VistaAnaliticaVet';
 import { VistaCalendario } from './components/VistaCalendario';
 import { VistaCenso } from './components/VistaCenso';
 import { VistaCrotales } from './components/VistaCrotales';
+import { VistaGestionEconomiaDocs } from './components/VistaGestionEconomiaDocs';
 import { VistaReproduccion } from './components/VistaReproduccion';
 import { VistaRobotCuadre } from './components/VistaRobotCuadre';
 import { VistaSalidasDocs } from './components/VistaSalidasDocs';
@@ -96,7 +98,8 @@ type Pestana =
   | 'crotales'
   | 'reproduccion'
   | 'salidas'
-  | 'analitica';
+  | 'analitica'
+  | 'gestion';
 
 export default function App() {
   const [almacen, setAlmacen] = useState<AlmacenMultiExplotacion>(() =>
@@ -1338,8 +1341,9 @@ export default function App() {
       badge: reproActivasNav,
       badgeColor: 'green',
     },
-    { id: 'salidas', label: 'Salidas y Docs', corto: 'Salidas', grupo: 'gestion', icono: Truck },
-    { id: 'analitica', label: 'Analítica y Vet', corto: 'Analítica', grupo: 'gestion', icono: BarChart3 },
+    { id: 'salidas', label: 'Salidas y Guías', corto: 'Salidas', grupo: 'gestion', icono: Truck },
+    { id: 'analitica', label: 'Veterinario', corto: 'Vet', grupo: 'gestion', icono: Stethoscope },
+    { id: 'gestion', label: 'Gestión y Economía', corto: 'Gestión', grupo: 'gestion', icono: Briefcase },
   ];
 
   const navOperacion = navItems.filter((i) => i.grupo === 'operacion');
@@ -1802,6 +1806,7 @@ export default function App() {
               );
               setModalNacimiento(true);
             }}
+            onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
           />
         )}
 
@@ -1828,6 +1833,19 @@ export default function App() {
             onAnadirMovimientoEconomico={anadirMovimientoEconomico}
             onAbrirLibrosOficiales={(libro = 'TRATAMIENTOS') => setModalLibros(libro)}
             onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
+          />
+        )}
+
+        {pestana === 'gestion' && (
+          <VistaGestionEconomiaDocs
+            estado={estado}
+            onAnadirMovimientoEconomico={anadirMovimientoEconomico}
+            onAnadirDocumento={(doc: DocumentoExplotacion) => {
+              setEstado((prev) => ({ ...prev, documentos: [doc, ...prev.documentos] }));
+              mostrarToast('Documento guardado en la Carpeta de Inspección.');
+            }}
+            onAbrirEscanerOcr={() => setModalOcr(true)}
+            onAbrirLibrosOficiales={(libro = 'EXPLOTACION') => setModalLibros(libro)}
           />
         )}
       </main>
