@@ -64,6 +64,7 @@ import {
   obtenerCorralesActivos,
 } from './domain/incidencias';
 import { obtenerSimboloGanado } from './domain/reglasNormativas';
+import { calcularCalendarioReproductivo } from './domain/reproduccion';
 import type { AccionVozInterpretada } from './domain/parserVozCampo';
 import type {
   AlmacenMultiExplotacion,
@@ -1259,6 +1260,10 @@ export default function App() {
     () => contarCrotalesDisponibles(estado.lotesCrotales, estado.explotacion.especiePrincipal),
     [estado.lotesCrotales, estado.explotacion.especiePrincipal],
   );
+  const reproActivasNav = useMemo(
+    () => calcularCalendarioReproductivo(estado.inseminaciones, estado.animales, hoyIso()).length,
+    [estado.inseminaciones, estado.animales],
+  );
   const diasMinSitranNav = useMemo(
     () =>
       alertas
@@ -1324,7 +1329,15 @@ export default function App() {
       badge: crotalesDisponiblesNav,
       badgeColor: crotalesDisponiblesNav > 0 ? 'green' : 'red',
     },
-    { id: 'reproduccion', label: 'Reproducción', corto: 'Reprod.', grupo: 'gestion', icono: CalendarHeart },
+    {
+      id: 'reproduccion',
+      label: 'Reproducción',
+      corto: 'Reprod.',
+      grupo: 'gestion',
+      icono: CalendarHeart,
+      badge: reproActivasNav,
+      badgeColor: 'green',
+    },
     { id: 'salidas', label: 'Salidas y Docs', corto: 'Salidas', grupo: 'gestion', icono: Truck },
     { id: 'analitica', label: 'Analítica y Vet', corto: 'Analítica', grupo: 'gestion', icono: BarChart3 },
   ];
