@@ -12,10 +12,7 @@ import {
 } from 'lucide-react';
 import { useRef } from 'react';
 import { estaEnSupresionCarne, estaEnSupresionLeche } from '../domain/alertas';
-import {
-  contarCrotalesDisponibles,
-  obtenerAnimalesConCrotalFaltante,
-} from '../domain/crotales';
+import { contarCrotalesDisponibles } from '../domain/crotales';
 import { hoyIso } from '../domain/fechas';
 import { detectarVacasProblema } from '../domain/incidencias';
 import { obtenerReglasNormativas, obtenerSimboloGanado } from '../domain/reglasNormativas';
@@ -67,8 +64,23 @@ export function DashboardSemaforo({
     estado.lotesCrotales,
     estado.explotacion.especiePrincipal,
   );
-  const duplicadosPendientes = obtenerAnimalesConCrotalFaltante(estado.animales).length;
   const alertasCriticas = alertas.filter((a) => a.nivel === 'CRITICA').length;
+  const diasMinSitran = alertas
+    .filter(
+      (a) =>
+        (a.categoria === 'NOTIFICACION_NACIMIENTO' ||
+          a.categoria === 'NOTIFICACION_BAJA' ||
+          a.categoria === 'COLOCACION_CROTAL') &&
+        typeof a.diasRestantes === 'number',
+    )
+    .map((a) => a.diasRestantes as number)
+    .sort((a, b) => a - b)[0];
+  const colorBadgeSitran =
+    tramitesPendientes > 0 && diasMinSitran !== undefined && diasMinSitran <= 2
+      ? 'bg-red-600'
+      : tramitesPendientes > 0 && diasMinSitran !== undefined && diasMinSitran <= 5
+        ? 'bg-orange-500'
+        : 'bg-emerald-600';
 
   const hitosRepro = calcularCalendarioReproductivo(estado.inseminaciones, estado.animales, hoy);
   const partosInminentes = hitosRepro.filter((h) => h.diasHastaParto <= 10);
@@ -118,9 +130,7 @@ export function DashboardSemaforo({
           <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#0f3d2e] bg-[#f8faf6] text-[#0f3d2e] shadow-xs transition group-hover:scale-105">
             <RefreshCw className="h-6 w-6" />
             <span
-              className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${
-                tramitesPendientes > 0 ? 'bg-red-600' : 'bg-emerald-600'
-              }`}
+              className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${colorBadgeSitran}`}
             >
               {tramitesPendientes}
             </span>
@@ -137,9 +147,7 @@ export function DashboardSemaforo({
             <Tag className="h-6 w-6" />
             <span
               className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${
-                crotalesDisponibles < 5 || duplicadosPendientes > 0
-                  ? 'bg-red-600'
-                  : 'bg-emerald-700'
+                crotalesDisponibles > 0 ? 'bg-emerald-600' : 'bg-red-600'
               }`}
             >
               {crotalesDisponibles}

@@ -46,6 +46,7 @@ import {
 } from './data/storage';
 import { calcularAlertasPlazos } from './domain/alertas';
 import {
+  contarCrotalesDisponibles,
   extraerNumeroCorto,
   marcarCrotalComoUsado,
   normalizarCrotal,
@@ -1251,6 +1252,35 @@ export default function App() {
     </span>
   );
 
+  const activosCount = useMemo(
+    () => estado.animales.filter((a) => a.estado === 'ACTIVO').length,
+    [estado.animales],
+  );
+  const crotalesDisponiblesNav = useMemo(
+    () => contarCrotalesDisponibles(estado.lotesCrotales, estado.explotacion.especiePrincipal),
+    [estado.lotesCrotales, estado.explotacion.especiePrincipal],
+  );
+  const diasMinSitranNav = useMemo(
+    () =>
+      alertas
+        .filter(
+          (a) =>
+            (a.categoria === 'NOTIFICACION_NACIMIENTO' ||
+              a.categoria === 'NOTIFICACION_BAJA' ||
+              a.categoria === 'COLOCACION_CROTAL') &&
+            typeof a.diasRestantes === 'number',
+        )
+        .map((a) => a.diasRestantes as number)
+        .sort((a, b) => a - b)[0],
+    [alertas],
+  );
+  const sitranBadgeColor: 'red' | 'orange' | 'green' =
+    numPendientes > 0 && diasMinSitranNav !== undefined && diasMinSitranNav <= 2
+      ? 'red'
+      : numPendientes > 0 && diasMinSitranNav !== undefined && diasMinSitranNav <= 5
+        ? 'orange'
+        : 'green';
+
   const navItems: {
     id: Pestana;
     label: string;
@@ -1258,12 +1288,45 @@ export default function App() {
     grupo: 'operacion' | 'gestion';
     icono: typeof LayoutDashboard | typeof IconoMiGanado;
     badge?: number;
+    badgeColor?: 'red' | 'orange' | 'green';
   }[] = [
-    { id: 'panel', label: 'Semáforo', corto: 'Inicio', grupo: 'operacion', icono: LayoutDashboard, badge: numCriticas || undefined },
-    { id: 'censo', label: 'MiGanado', corto: 'MiGanado', grupo: 'operacion', icono: IconoMiGanado },
+    {
+      id: 'panel',
+      label: 'Semáforo',
+      corto: 'Inicio',
+      grupo: 'operacion',
+      icono: LayoutDashboard,
+      badge: numCriticas,
+      badgeColor: numCriticas > 0 ? 'red' : 'green',
+    },
+    {
+      id: 'censo',
+      label: 'MiGanado',
+      corto: 'MiGanado',
+      grupo: 'operacion',
+      icono: IconoMiGanado,
+      badge: activosCount,
+      badgeColor: 'green',
+    },
     { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
-    { id: 'robot', label: 'Sincronizar Robot/SITRAN', corto: 'Robot/SITRAN', grupo: 'operacion', icono: GitCompare, badge: numPendientes || undefined },
-    { id: 'crotales', label: 'Crotales', corto: 'Crotales', grupo: 'gestion', icono: Tag },
+    {
+      id: 'robot',
+      label: 'Sincronizar Robot/SITRAN',
+      corto: 'Robot/SITRAN',
+      grupo: 'operacion',
+      icono: GitCompare,
+      badge: numPendientes,
+      badgeColor: sitranBadgeColor,
+    },
+    {
+      id: 'crotales',
+      label: 'Crotales',
+      corto: 'Crotales',
+      grupo: 'gestion',
+      icono: Tag,
+      badge: crotalesDisponiblesNav,
+      badgeColor: crotalesDisponiblesNav > 0 ? 'green' : 'red',
+    },
     { id: 'reproduccion', label: 'Reproducción', corto: 'Reprod.', grupo: 'gestion', icono: CalendarHeart },
     { id: 'salidas', label: 'Salidas y Docs', corto: 'Salidas', grupo: 'gestion', icono: Truck },
     { id: 'analitica', label: 'Analítica y Vet', corto: 'Analítica', grupo: 'gestion', icono: BarChart3 },
@@ -1721,7 +1784,15 @@ export default function App() {
               </span>
               <span>{item.corto}</span>
               {item.badge !== undefined && (
-                <span className="absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 font-mono text-[9px] font-bold text-white">
+                <span
+                  className={`absolute right-2 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold text-white ${
+                    item.badgeColor === 'orange'
+                      ? 'bg-orange-500'
+                      : item.badgeColor === 'green'
+                        ? 'bg-emerald-600'
+                        : 'bg-red-600'
+                  }`}
+                >
                   {item.badge}
                 </span>
               )}

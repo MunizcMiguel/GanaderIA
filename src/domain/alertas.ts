@@ -253,6 +253,54 @@ export function calcularAlertasPlazos(
     }
   }
 
+  // 4b. Retraso de recepción de crotales pedidos y recordatorio de colocar duplicados recibidos
+  if (estado.pedidoCrotalesActivo) {
+    const diasHastaAviso = diferenciaDias(
+      estado.pedidoCrotalesActivo.fechaAvisoCalendario,
+      fechaRefIso,
+    );
+    if (diasHastaAviso <= 0) {
+      const retraso = Math.abs(diasHastaAviso);
+      alertas.push({
+        id: `crotal-ped-retraso-${estado.pedidoCrotalesActivo.id}`,
+        nivel: retraso >= 7 ? 'CRITICA' : 'ATENCION',
+        categoria: 'STOCK_CROTALES',
+        titulo: 'Confirmar recepción de crotales pedidos',
+        detalle: `Pedido del ${formatearFechaEs(estado.pedidoCrotalesActivo.fechaPedido)} (${estado.pedidoCrotalesActivo.cantidad} uds.). Confirma si llegaron para añadirlos al cajón.`,
+        fechaLimite: estado.pedidoCrotalesActivo.fechaAvisoCalendario,
+        diasRestantes: diasHastaAviso,
+      });
+    }
+  }
+
+  for (const ped of estado.pedidosDuplicados || []) {
+    if (!ped.recibido) {
+      const diasDesdePedido = diferenciaDias(fechaRefIso, ped.fechaPedido);
+      if (diasDesdePedido >= 7) {
+        alertas.push({
+          id: `dup-retraso-${ped.id}`,
+          nivel: diasDesdePedido >= 14 ? 'CRITICA' : 'ATENCION',
+          categoria: 'STOCK_CROTALES',
+          titulo: `Retraso en recepción de duplicados (${ped.items.length} uds.)`,
+          detalle: `Pedidos el ${formatearFechaEs(ped.fechaPedido)} a ${ped.proveedor}. Confirma recepción cuando lleguen.`,
+          fechaLimite: ped.fechaPedido,
+          diasRestantes: 7 - diasDesdePedido,
+        });
+      }
+    } else {
+      const sinColocar = ped.items.filter((i) => !i.colocado);
+      if (sinColocar.length > 0) {
+        alertas.push({
+          id: `dup-colocar-${ped.id}`,
+          nivel: 'ATENCION',
+          categoria: 'STOCK_CROTALES',
+          titulo: `Recordatorio: colocar ${sinColocar.length} duplicado(s) recibido(s)`,
+          detalle: `Ya recibidos (${sinColocar.map((x) => `#${x.numeroCorto}`).join(', ')}). Márcalos como colocados en Crotales al ponerlos.`,
+        });
+      }
+    }
+  }
+
   // Ordenar: CRITICA -> ATENCION -> OK, y luego por menor días restantes
   const peso: Record<NivelAlerta, number> = { CRITICA: 0, ATENCION: 1, OK: 2 };
   return alertas.sort((a, b) => {
