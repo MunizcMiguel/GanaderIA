@@ -1,6 +1,7 @@
 import {
-  AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Download,
   ExternalLink,
   Landmark,
@@ -15,7 +16,8 @@ import {
 } from '../domain/exportadores';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import { obtenerReglasNormativas } from '../domain/reglasNormativas';
-import type { EstadoGanaderia, EventoTramite } from '../domain/types';
+import type { EstadoGanaderia, EventoTramite, UnidadGanadera } from '../domain/types';
+import { AvatarVacaFoto } from './AvatarVacaFoto';
 
 interface Props {
   estado: EstadoGanaderia;
@@ -30,6 +32,7 @@ export function VistaSitran({
 }: Props) {
   const [ultimaSync, setUltimaSync] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   const reglas = obtenerReglasNormativas(
     estado.explotacion.comunidad,
@@ -51,10 +54,17 @@ export function VistaSitran({
     [activasLocal],
   );
 
-  const sinAltaOficial = useMemo(
-    () => activasLocal.filter((a) => !a.enCensoOficial),
-    [activasLocal],
-  );
+  // Diferencias calculadas registro a registro (no por saldo neto global):
+  // suma cada trámite pendiente (nacimientos, bajas, salidas, duplicados) + reses sin alta oficial que no tengan ya un trámite pendiente.
+  const sinAltaSinEvento = useMemo(() => {
+    const crotalesConPendiente = new Set(pendientes.map((p) => p.crotal));
+    return activasLocal.filter((a) => !a.enCensoOficial && !crotalesConPendiente.has(a.crotal));
+  }, [activasLocal, pendientes]);
+
+  const totalDiferencias = pendientes.length + sinAltaSinEvento.length;
+
+  const buscarAnimal = (ev: EventoTramite): UnidadGanadera | undefined =>
+    estado.animales.find((a) => a.id === ev.animalId || a.crotal === ev.crotal);
 
   const etiquetaTipo = (tipo: EventoTramite['tipo']) => {
     switch (tipo) {
@@ -87,13 +97,13 @@ export function VistaSitran({
       minute: '2-digit',
     });
     setUltimaSync(ahora);
-    if (pendientes.length === 0 && sinAltaOficial.length === 0) {
+    if (totalDiferencias === 0) {
       setAviso(
-        `Consulta con SITRAN (${reglas.portalNombre}) completada a las ${ahora}: todo tu censo (${activasLocal.length} reses) está cuadrado y sin trámites pendientes.`,
+        `Consulta con SITRAN (${reglas.portalNombre}) a las ${ahora}: sin diferencias entre registros (${activasLocal.length} reses al día).`,
       );
     } else {
       setAviso(
-        `Estado descargado de SITRAN / RemoWeb a las ${ahora}: detectados ${pendientes.length} trámite(s) pendientes y ${sinAltaOficial.length} res(es) sin alta oficial en el Principado.`,
+        `Consulta SITRAN (${ahora}): detectadas ${totalDiferencias} diferencia(s) entre registros pendientes de enviar.`,
       );
     }
   };
@@ -101,7 +111,7 @@ export function VistaSitran({
   const handleMandarUno = (ev: EventoTramite) => {
     const ref = `REMO-${hoyIso().replace(/-/g, '')}-${ev.crotal.slice(-4)}`;
     onMarcarTramitado(ev.id, ref);
-    setAviso(`Trámite "${etiquetaTipo(ev.tipo)}" (${ev.crotal}) enviado a SITRAN vía RemoWeb (${ref}).`);
+    setAviso(`Trámite "${etiquetaTipo(ev.tipo)}" (${ev.crotal}) enviado a SITRAN (${ref}).`);
   };
 
   const handleMandarTodo = () => {
@@ -112,21 +122,21 @@ export function VistaSitran({
   };
 
   return (
-    <div className="animate-fade-up space-y-5">
+    <div className="animate-fade-up space-y-4">
       {/* Cabecera y botón principal de consulta SITRAN */}
-      <section className="card-surface rounded-2xl p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="card-surface rounded-2xl p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300">
-              <Landmark className="h-6 w-6" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f3d2e] text-amber-300">
+              <Landmark className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-[#0f1f18]">
+              <h2 className="text-base font-extrabold text-[#0f1f18]">
                 SITRAN / {reglas.portalNombre}
               </h2>
-              <p className="mt-0.5 text-xs text-[#52655c]">
-                Descarga el estado actual de tu explotación ({estado.explotacion.codigoRega}) en
-                SITRAN RemoWeb, compáralo con GanaderIA y envía los trámites pendientes.
+              <p className="text-xs text-[#52655c]">
+                REGA {estado.explotacion.codigoRega} · Compara tu cuadra con SITRAN y envía los
+                trámites pendientes.
               </p>
             </div>
           </div>
@@ -135,7 +145,7 @@ export function VistaSitran({
             href={reglas.portalUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3.5 py-2 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3 py-1.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
           >
             Abrir RemoWeb
             <ExternalLink className="h-3.5 w-3.5" />
@@ -145,15 +155,14 @@ export function VistaSitran({
         <button
           type="button"
           onClick={handleSincronizarConSitran}
-          className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#0f3d2e] px-5 py-4 text-sm font-extrabold text-white shadow-md transition hover:bg-[#16523e] active:scale-[0.99]"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0f3d2e] px-4 py-3.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#16523e] active:scale-[0.99]"
         >
-          <RefreshCw className="h-5 w-5 text-amber-300" />
-          Sincronizar con SITRAN
-          {ultimaSync ? ` (última: ${ultimaSync})` : ''}
+          <RefreshCw className="h-4 w-4 text-amber-300" />
+          Sincronizar con SITRAN{ultimaSync ? ` (${ultimaSync})` : ''}
         </button>
 
         {aviso && (
-          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-900">
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
             <span>{aviso}</span>
             <button
               type="button"
@@ -166,73 +175,50 @@ export function VistaSitran({
         )}
       </section>
 
-      {/* Comparativa GanaderIA vs SITRAN */}
-      <section className="grid gap-3 sm:grid-cols-3">
-        <div className="card-surface rounded-2xl p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#52655c]">
-            En GanaderIA (activas)
+      {/* Comparativa compacta en una sola fila (siempre 3 columnas, sin scroll extra) */}
+      <section className="grid grid-cols-3 gap-2">
+        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+            En GanaderIA
           </p>
-          <p className="mt-1 font-mono text-2xl font-extrabold text-[#0f1f18]">
+          <p className="mt-0.5 font-mono text-xl font-extrabold text-[#0f1f18]">
             {activasLocal.length}
           </p>
         </div>
-        <div className="card-surface rounded-2xl p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#52655c]">
-            En SITRAN oficial
+        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+            En SITRAN
           </p>
-          <p className="mt-1 font-mono text-2xl font-extrabold text-emerald-800">
+          <p className="mt-0.5 font-mono text-xl font-extrabold text-emerald-800">
             {activasEnSitran.length}
           </p>
         </div>
-        <div className="card-surface rounded-2xl p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#52655c]">
-            Diferencias / Pendientes
+        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+            Diferencias
           </p>
           <p
-            className={`mt-1 font-mono text-2xl font-extrabold ${
-              pendientes.length + sinAltaOficial.length > 0
-                ? 'text-amber-700'
-                : 'text-emerald-700'
+            className={`mt-0.5 font-mono text-xl font-extrabold ${
+              totalDiferencias > 0 ? 'text-amber-700' : 'text-emerald-700'
             }`}
           >
-            {pendientes.length}
+            {totalDiferencias}
           </p>
         </div>
       </section>
 
-      {/* Diferencias de censo detectadas */}
-      {sinAltaOficial.length > 0 && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="flex items-center gap-2 text-xs font-extrabold text-amber-950">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            Diferencias de censo respecto a SITRAN ({sinAltaOficial.length} reses en GanaderIA aún
-            no figuran en el censo oficial):
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {sinAltaOficial.map((a) => (
-              <span
-                key={a.id}
-                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-mono text-xs font-bold text-amber-950"
-              >
-                #{a.numeroCorto} · {a.crotal}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Listado de trámites pendientes con botón individual MANDAR A SITRAN */}
+      {/* Listado de diferencias / trámites pendientes (clic para expandir ficha completa) */}
       <section className="card-surface overflow-hidden rounded-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#edf1e9] bg-[#fafbf8] px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#edf1e9] bg-[#fafbf8] px-4 py-3.5">
           <div>
-            <h3 className="text-base font-extrabold text-[#0f1f18]">
-              Trámites pendientes de sincronizar con SITRAN ({pendientes.length})
+            <h3 className="text-sm font-extrabold text-[#0f1f18]">
+              Diferencias y trámites pendientes ({pendientes.length})
             </h3>
-            <p className="text-xs text-[#52655c]">
-              Puedes enviarlos uno a uno a través de RemoWeb o mandarlos todos al final.
+            <p className="text-[11px] text-[#52655c]">
+              Pulsa en cualquier fila para ver la ficha completa antes de mandar a SITRAN.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               disabled={pendientes.length === 0}
@@ -243,10 +229,10 @@ export function VistaSitran({
                   'application/json;charset=utf-8',
                 )
               }
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3 py-1.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1] disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2.5 py-1 text-[11px] font-bold text-[#1f3329] hover:bg-[#f4f6f1] disabled:opacity-40"
             >
-              <Download className="h-3.5 w-3.5" />
-              JSON RemoWeb
+              <Download className="h-3 w-3" />
+              JSON
             </button>
             <button
               type="button"
@@ -258,9 +244,9 @@ export function VistaSitran({
                   'application/xml;charset=utf-8',
                 )
               }
-              className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-900 hover:bg-sky-100 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-900 hover:bg-sky-100 disabled:opacity-40"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3 w-3" />
               XML SITRAN
             </button>
           </div>
@@ -268,50 +254,206 @@ export function VistaSitran({
 
         <div className="divide-y divide-[#eef2eb]">
           {pendientes.length === 0 ? (
-            <div className="flex items-center gap-2.5 p-6 text-sm font-bold text-emerald-800">
+            <div className="flex items-center gap-2.5 p-5 text-sm font-bold text-emerald-800">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               No hay trámites pendientes. GanaderIA y SITRAN están al día.
             </div>
           ) : (
-            pendientes.map((ev) => (
-              <div
-                key={ev.id}
-                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-950">
-                      {etiquetaTipo(ev.tipo)}
-                    </span>
-                    <span className="font-mono text-xs font-bold text-[#0f1f18]">{ev.crotal}</span>
-                    <span className="text-xs text-[#52655c]">
-                      · {formatearFechaEs(ev.fechaEvento)}
-                    </span>
+            pendientes.map((ev) => {
+              const abierto = expandidoId === ev.id;
+              const animal = buscarAnimal(ev);
+
+              return (
+                <div key={ev.id} className="transition hover:bg-[#fafbf8]">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setExpandidoId(abierto ? null : ev.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setExpandidoId(abierto ? null : ev.id);
+                      }
+                    }}
+                    className="flex cursor-pointer flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-950">
+                          {etiquetaTipo(ev.tipo)}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-[#0f1f18]">
+                          {ev.crotal}
+                        </span>
+                        {animal?.nombre && (
+                          <span className="text-xs font-bold text-[#2b4036]">
+                            ({animal.nombre})
+                          </span>
+                        )}
+                        <span className="text-xs text-[#52655c]">
+                          · {formatearFechaEs(ev.fechaEvento)}
+                        </span>
+                        {abierto ? (
+                          <ChevronUp className="h-4 w-4 text-[#52655c]" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-[#52655c]" />
+                        )}
+                      </div>
+                      {(ev.motivo || ev.destino || ev.numeroDamer || ev.crotalMadre) && (
+                        <p className="truncate text-xs text-[#4a5d54]">
+                          {[
+                            ev.crotalMadre ? `Madre: ${ev.crotalMadre}` : null,
+                            ev.destino ? `Destino: ${ev.destino}` : null,
+                            ev.numeroDamer ? `DAMER: ${ev.numeroDamer}` : null,
+                            ev.motivo || null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMandarUno(ev);
+                      }}
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-extrabold text-white transition hover:bg-emerald-800"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      MANDAR A SITRAN
+                    </button>
                   </div>
-                  {(ev.motivo || ev.destino || ev.numeroDamer || ev.crotalMadre) && (
-                    <p className="text-xs text-[#4a5d54]">
-                      {[
-                        ev.crotalMadre ? `Madre: ${ev.crotalMadre}` : null,
-                        ev.destino ? `Destino: ${ev.destino}` : null,
-                        ev.numeroDamer ? `DAMER: ${ev.numeroDamer}` : null,
-                        ev.motivo || null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
+
+                  {/* Ficha completa desplegable al pulsar */}
+                  {abierto && (
+                    <div className="border-t border-[#eef2eb] bg-[#f8faf6] p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        {animal?.fotoDataUrl ? (
+                          <AvatarVacaFoto
+                            fotoDataUrl={animal.fotoDataUrl}
+                            numeroCorto={animal.numeroCorto}
+                            nombre={animal.nombre}
+                            tamano="lg"
+                          />
+                        ) : (
+                          <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-[3px] border-[#15803d] bg-white text-center shadow-xs">
+                            <span className="text-[10px] font-bold text-[#52655c]">Crotal</span>
+                            <span className="rounded bg-amber-300 px-1.5 py-0.5 font-mono text-xs font-extrabold text-amber-950">
+                              #{animal?.numeroCorto || ev.crotal.slice(-4)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="grid flex-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Crotal oficial: </span>
+                            <span className="font-mono font-bold text-[#0f1f18]">{ev.crotal}</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Nombre: </span>
+                            <span className="font-bold text-[#0f1f18]">
+                              {animal?.nombre || 'Sin nombre'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Raza / Sexo: </span>
+                            <span className="font-bold text-[#0f1f18]">
+                              {animal?.raza || ev.raza || '—'} ·{' '}
+                              {(animal?.sexo || ev.sexo) === 'H'
+                                ? 'Hembra'
+                                : (animal?.sexo || ev.sexo) === 'M'
+                                  ? 'Macho'
+                                  : '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Nacimiento: </span>
+                            <span className="font-bold text-[#0f1f18]">
+                              {formatearFechaEs(animal?.fechaNacimiento || ev.fechaEvento)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Madre: </span>
+                            <span className="font-mono font-bold text-[#0f1f18]">
+                              {animal?.crotalMadre || ev.crotalMadre || '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#52655c]">Estado en SITRAN: </span>
+                            <span className="font-bold text-[#0f1f18]">
+                              {animal?.enCensoOficial ? 'En censo oficial' : 'Pendiente de alta'}
+                            </span>
+                          </div>
+                          {ev.modalidadMuerte && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">Modalidad muerte: </span>
+                              <span className="font-bold text-[#0f1f18]">{ev.modalidadMuerte}</span>
+                            </div>
+                          )}
+                          {ev.numeroDamer && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">Nº DAMER: </span>
+                              <span className="font-mono font-bold text-[#0f1f18]">
+                                {ev.numeroDamer}
+                              </span>
+                            </div>
+                          )}
+                          {ev.ceaMatadero && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">CEA Matadero: </span>
+                              <span className="font-mono font-bold text-[#0f1f18]">
+                                {ev.ceaMatadero}
+                              </span>
+                            </div>
+                          )}
+                          {(ev.concejo || ev.lugarMuerte) && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">Ubicación: </span>
+                              <span className="font-bold text-[#0f1f18]">
+                                {[ev.concejo, ev.lugarMuerte].filter(Boolean).join(' — ')}
+                              </span>
+                            </div>
+                          )}
+                          {ev.codigoSirentra && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">SIRENTRA: </span>
+                              <span className="font-mono font-bold text-[#0f1f18]">
+                                {ev.codigoSirentra}
+                              </span>
+                            </div>
+                          )}
+                          {ev.matriculaVehiculo && (
+                            <div>
+                              <span className="font-semibold text-[#52655c]">Matrícula: </span>
+                              <span className="font-mono font-bold text-[#0f1f18]">
+                                {ev.matriculaVehiculo}
+                              </span>
+                            </div>
+                          )}
+                          {ev.destino && (
+                            <div className="sm:col-span-2">
+                              <span className="font-semibold text-[#52655c]">Destino: </span>
+                              <span className="font-bold text-[#0f1f18]">
+                                {ev.destino}
+                                {ev.codigoRegaDestino ? ` (${ev.codigoRegaDestino})` : ''}
+                              </span>
+                            </div>
+                          )}
+                          {ev.motivo && (
+                            <div className="sm:col-span-2">
+                              <span className="font-semibold text-[#52655c]">Motivo / Notas: </span>
+                              <span className="text-[#0f1f18]">{ev.motivo}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleMandarUno(ev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-emerald-800"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  MANDAR A SITRAN
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
