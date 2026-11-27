@@ -1691,13 +1691,59 @@ export default function App() {
             estado={estado}
             onAnadirInseminacion={anadirInseminacion}
             onConfirmarGestacion={(insId) => {
+              const actual = (estado.inseminaciones || []).find((i) => i.id === insId);
+              const nuevoValor = !(actual?.confirmadaGestacion);
               setEstado((prev) => ({
                 ...prev,
                 inseminaciones: (prev.inseminaciones || []).map((i) =>
-                  i.id === insId ? { ...i, confirmadaGestacion: true } : i,
+                  i.id === insId ? { ...i, confirmadaGestacion: nuevoValor } : i,
                 ),
               }));
-              mostrarToast('Gestación marcada como confirmada.');
+              mostrarToast(
+                nuevoValor
+                  ? 'Gestación marcada como confirmada.'
+                  : 'Confirmación de preñez retirada (pendiente de ecografía).',
+              );
+            }}
+            onEditarInseminacion={(insId, datos) => {
+              setEstado((prev) => ({
+                ...prev,
+                inseminaciones: (prev.inseminaciones || []).map((i) =>
+                  i.id === insId
+                    ? {
+                        ...i,
+                        fechaInseminacion: datos.fechaInseminacion,
+                        toro: datos.toro || undefined,
+                      }
+                    : i,
+                ),
+              }));
+              mostrarToast('Cubrición actualizada.');
+            }}
+            onEliminarInseminacion={(insId) => {
+              setEstado((prev) => ({
+                ...prev,
+                inseminaciones: (prev.inseminaciones || []).filter((i) => i.id !== insId),
+              }));
+              mostrarToast('Registro de cubrición eliminado.');
+            }}
+            onDeshacerSecada={(insId) => {
+              setEstado((prev) => ({
+                ...prev,
+                inseminaciones: (prev.inseminaciones || []).map((i) =>
+                  i.id === insId ? { ...i, fechaSecadoReal: undefined } : i,
+                ),
+              }));
+              mostrarToast('Marca de secado retirada.');
+            }}
+            onReabrirInseminacion={(insId) => {
+              setEstado((prev) => ({
+                ...prev,
+                inseminaciones: (prev.inseminaciones || []).map((i) =>
+                  i.id === insId ? { ...i, estado: 'ACTIVA' } : i,
+                ),
+              }));
+              mostrarToast('Cubrición devuelta a "En curso".');
             }}
             onMarcarFallida={(insId) => {
               setEstado((prev) => ({

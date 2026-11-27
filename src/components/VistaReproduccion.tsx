@@ -6,9 +6,12 @@ import {
   ChevronDown,
   ChevronUp,
   Droplets,
+  Pencil,
   Plus,
+  RotateCcw,
   Search,
   ShieldCheck,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -32,8 +35,15 @@ interface Props {
     confirmadaGestacion: boolean;
   }) => void;
   onConfirmarGestacion: (inseminacionId: string) => void;
+  onEditarInseminacion?: (
+    inseminacionId: string,
+    datos: { fechaInseminacion: string; toro: string },
+  ) => void;
+  onEliminarInseminacion?: (inseminacionId: string) => void;
   onMarcarFallida?: (inseminacionId: string) => void;
   onMarcarSecada?: (inseminacionId: string) => void;
+  onDeshacerSecada?: (inseminacionId: string) => void;
+  onReabrirInseminacion?: (inseminacionId: string) => void;
   onMarcarParida: (inseminacionId: string) => void;
 }
 
@@ -44,8 +54,12 @@ export function VistaReproduccion({
   estado,
   onAnadirInseminacion,
   onConfirmarGestacion,
+  onEditarInseminacion,
+  onEliminarInseminacion,
   onMarcarFallida,
   onMarcarSecada,
+  onDeshacerSecada,
+  onReabrirInseminacion,
   onMarcarParida,
 }: Props) {
   const hoy = hoyIso();
@@ -63,6 +77,9 @@ export function VistaReproduccion({
   const [filtroIcono, setFiltroIcono] = useState<FiltroIcono>('TODAS');
   const [vistaTab, setVistaTab] = useState<VistaTab>('EN_CURSO');
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editFecha, setEditFecha] = useState('');
+  const [editToro, setEditToro] = useState('');
 
   const hitos = useMemo(
     () => calcularCalendarioReproductivo(estado.inseminaciones, estado.animales, hoy),
@@ -468,16 +485,23 @@ export function VistaReproduccion({
                         className="flex flex-wrap gap-1.5"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {!h.confirmadaGestacion && (
-                          <button
-                            type="button"
-                            onClick={() => onConfirmarGestacion(h.inseminacionId)}
-                            className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Preñada
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => onConfirmarGestacion(h.inseminacionId)}
+                          title={
+                            h.confirmadaGestacion
+                              ? 'Pulsar para quitar confirmación de preñada'
+                              : 'Confirmar preñada'
+                          }
+                          className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
+                            h.confirmadaGestacion
+                              ? 'border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-red-50 hover:text-red-800 hover:border-red-200'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {h.confirmadaGestacion ? 'Quitar preñada' : 'Preñada'}
+                        </button>
                         {!h.fechaSecadoReal &&
                           h.diasHastaSecado !== undefined &&
                           h.diasHastaSecado <= 15 &&
@@ -550,17 +574,110 @@ export function VistaReproduccion({
                           <span className="text-[#52655c]">
                             Toro: <strong className="text-[#0f1f18]">{h.toro || 'Sin indicar'}</strong>
                           </span>
-                          {onMarcarFallida && (
-                            <button
-                              type="button"
-                              onClick={() => onMarcarFallida(h.inseminacionId)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-800 hover:bg-red-100"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              Vacía / Repite celo
-                            </button>
-                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {onEditarInseminacion && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (editandoId === h.inseminacionId) {
+                                    setEditandoId(null);
+                                  } else {
+                                    setEditandoId(h.inseminacionId);
+                                    setEditFecha(h.fechaInseminacion);
+                                    setEditToro(h.toro || '');
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1 rounded-xl border border-[#dce4d6] bg-white px-2.5 py-1.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Editar
+                              </button>
+                            )}
+                            {h.fechaSecadoReal && onDeshacerSecada && (
+                              <button
+                                type="button"
+                                onClick={() => onDeshacerSecada(h.inseminacionId)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                Deshacer secado
+                              </button>
+                            )}
+                            {onMarcarFallida && (
+                              <button
+                                type="button"
+                                onClick={() => onMarcarFallida(h.inseminacionId)}
+                                className="inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-950 hover:bg-amber-100"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                Vacía / Repite celo
+                              </button>
+                            )}
+                            {onEliminarInseminacion && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onEliminarInseminacion(h.inseminacionId);
+                                  setExpandidoId(null);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-800 hover:bg-red-100"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Quitar (error)
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {editandoId === h.inseminacionId && onEditarInseminacion && (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              onEditarInseminacion(h.inseminacionId, {
+                                fechaInseminacion: editFecha,
+                                toro: editToro.trim(),
+                              });
+                              setEditandoId(null);
+                            }}
+                            className="grid gap-2 rounded-xl border border-emerald-200 bg-white p-3 text-xs sm:grid-cols-3"
+                          >
+                            <label className="font-bold text-[#31453b]">
+                              Fecha cubrición
+                              <input
+                                type="date"
+                                value={editFecha}
+                                onChange={(e) => setEditFecha(e.target.value)}
+                                required
+                                className="mt-1 w-full rounded-lg border border-[#dce4d6] px-2 py-1.5"
+                              />
+                            </label>
+                            <label className="font-bold text-[#31453b]">
+                              Toro / Dosis
+                              <input
+                                type="text"
+                                value={editToro}
+                                onChange={(e) => setEditToro(e.target.value)}
+                                placeholder="Nombre toro"
+                                className="mt-1 w-full rounded-lg border border-[#dce4d6] px-2 py-1.5"
+                              />
+                            </label>
+                            <div className="flex items-end gap-1.5">
+                              <button
+                                type="submit"
+                                className="flex-1 rounded-lg bg-[#0f3d2e] px-3 py-1.5 font-bold text-white"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditandoId(null)}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-600"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     )}
                   </div>
@@ -639,15 +756,37 @@ export function VistaReproduccion({
                       {ins.toro ? ` · Toro: ${ins.toro}` : ''}
                     </span>
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${
-                      ins.estado === 'PARIDA'
-                        ? 'bg-emerald-100 text-emerald-900'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {ins.estado === 'PARIDA' ? 'Parida' : 'Vacía / Fallida'}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${
+                        ins.estado === 'PARIDA'
+                          ? 'bg-emerald-100 text-emerald-900'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {ins.estado === 'PARIDA' ? 'Parida' : 'Vacía / Fallida'}
+                    </span>
+                    {onReabrirInseminacion && (
+                      <button
+                        type="button"
+                        onClick={() => onReabrirInseminacion(ins.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2 py-1 text-[11px] font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Devolver a En curso
+                      </button>
+                    )}
+                    {onEliminarInseminacion && (
+                      <button
+                        type="button"
+                        onClick={() => onEliminarInseminacion(ins.id)}
+                        aria-label="Eliminar registro"
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-800 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
