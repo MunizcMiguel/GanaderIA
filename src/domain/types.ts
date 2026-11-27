@@ -324,6 +324,24 @@ export interface PedidoCrotalesActivo {
   formaEnvio?: FormaEnvioDuplicado;
 }
 
+export interface PedidoDuplicadoItem {
+  animalId: string;
+  crotal: string;
+  numeroCorto: string;
+  detalle: EstadoCrotalFisico;
+  colocado: boolean;
+}
+
+export interface PedidoDuplicados {
+  id: string;
+  fechaPedido: string; // YYYY-MM-DD
+  proveedor: string;
+  formaEnvio?: FormaEnvioDuplicado;
+  recibido: boolean;
+  fechaRecepcion?: string;
+  items: PedidoDuplicadoItem[];
+}
+
 export interface DocumentoExplotacion {
   id: string;
   categoria: 'SANEAMIENTO' | 'PSI' | 'DIB' | 'RECETA_PRESVET' | 'GUIA_MOVIMIENTO' | 'OTRO';
@@ -436,6 +454,7 @@ export interface EstadoGanaderia {
   movimientosEconomicos?: MovimientoEconomico[];
   razasPersonalizadas?: string[];
   pedidoCrotalesActivo?: PedidoCrotalesActivo;
+  pedidosDuplicados?: PedidoDuplicados[];
   ultimaImportacionRobot?: {
     fechaIso: string;
     archivo: string;

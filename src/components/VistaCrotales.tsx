@@ -22,7 +22,13 @@ import {
 import { descargarArchivo, generarCsvSolicitudDuplicados } from '../domain/exportadores';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import { obtenerReglasNormativas } from '../domain/reglasNormativas';
-import type { EstadoGanaderia, FormaEnvioDuplicado, LoteCrotales } from '../domain/types';
+import type {
+  EstadoCrotalFisico,
+  EstadoGanaderia,
+  FormaEnvioDuplicado,
+  LoteCrotales,
+  PedidoDuplicadoItem,
+} from '../domain/types';
 import { BotonCopiar } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
 
@@ -37,6 +43,14 @@ interface Props {
   }) => void;
   onAplazarPedidoCrotales?: () => void;
   onAnularPedidoCrotales?: () => void;
+  onRegistrarPerdidaCrotal?: (animalId: string, nuevoEstado: EstadoCrotalFisico) => void;
+  onCrearPedidoDuplicados?: (datos: {
+    proveedor: string;
+    formaEnvio: FormaEnvioDuplicado;
+    items: Array<Omit<PedidoDuplicadoItem, 'colocado'>>;
+  }) => void;
+  onConfirmarRecepcionPedidoDuplicados?: (pedidoId: string) => void;
+  onMarcarDuplicadoColocado?: (pedidoId: string, animalId: string) => void;
 }
 
 export function VistaCrotales({
@@ -46,6 +60,10 @@ export function VistaCrotales({
   onSolicitarCrotales,
   onAplazarPedidoCrotales,
   onAnularPedidoCrotales,
+  onRegistrarPerdidaCrotal,
+  onCrearPedidoDuplicados,
+  onConfirmarRecepcionPedidoDuplicados,
+  onMarcarDuplicadoColocado,
 }: Props) {
   const [prefijo, setPrefijo] = useState('ES22030001');
   const [desde, setDesde] = useState('21');
@@ -60,6 +78,13 @@ export function VistaCrotales({
     estado.explotacion.proveedorCrotalHabitual || 'AZASA',
   );
   const [envioPedido, setEnvioPedido] = useState<FormaEnvioDuplicado>('CORREO_ORDINARIO');
+  const [mostrarDuplicadosDetalle, setMostrarDuplicadosDetalle] = useState(false);
+  const [mostrarFormPerdida, setMostrarFormPerdida] = useState(false);
+  const activosParaPerdida = estado.animales.filter(
+    (a) => a.estado === 'ACTIVO' && a.estadoCrotal === 'OK',
+  );
+  const [animalPerdidaId, setAnimalPerdidaId] = useState(activosParaPerdida[0]?.id || '');
+  const [orejaPerdida, setOrejaPerdida] = useState<EstadoCrotalFisico>('FALTA_IZQUIERDO');
   const [margenAviso, setMargenAviso] = useState<number>(() => {
     try {
       const saved = window.localStorage.getItem('ganaderia_margen_crotales');
@@ -565,92 +590,328 @@ export function VistaCrotales({
           )}
       </div>
 
-      {/* Lista de duplicados por pérdida o deterioro (AZASA / OCA) */}
-      <section className="overflow-hidden rounded-2xl border border-amber-300/80 bg-white shadow-xs">
-        <div className="flex flex-col gap-3 border-b border-amber-200/80 bg-amber-50/75 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-2.5">
-            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-800" />
-            <div>
-              <h3 className="text-base font-extrabold text-[#0f1f18]">
-                Lista de Duplicados de Crotales por Pedir ({duplicados.length})
-              </h3>
-              <p className="text-xs text-[#4a5d54]">
-                Animales marcados en la cuadra con crotal caído o roto. Listado listo para{' '}
-                <strong>{reglas.proveedorDuplicados}</strong>.
-              </p>
-            </div>
-          </div>
+      {/* Botón / Icono inferior de Duplicados + Desplegable completo */}
+      {(() => {
+        const pedidosDup = estado.pedidosDuplicados || [];
+        const ultimoSinRecibir = pedidosDup.find((p) => !p.recibido);
+        const idsEnPedidosActivos = new Set(
+          pedidosDup.flatMap((p) => p.items.filter((i) => !i.colocado).map((i) => i.animalId)),
+        );
+        const yaSolicitadosCount = pedidosDup.reduce(
+          (acc, p) => acc + p.items.filter((i) => !i.colocado).length,
+          0,
+        );
+        const faltanPorSolicitar = duplicados.filter((a) => !idsEnPedidosActivos.has(a.id));
+        const pedidosNoRecibidos = pedidosDup.filter((p) => !p.recibido);
+        const pedidosRecibidos = pedidosDup.filter((p) => p.recibido);
 
-          {duplicados.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <BotonCopiar valor={textoDuplicados} etiqueta="Copiar lista completa" />
+        return (
+          <section className="card-surface rounded-2xl p-4 sm:p-5">
+            {/* Icono centrado de Duplicados */}
+            <div className="flex flex-col items-center gap-2 text-center">
+              {ultimoSinRecibir && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-[10px] font-extrabold text-sky-900">
+                  <Mail className="h-3 w-3 text-sky-700" />
+                  Último pedido: {formatearFechaEs(ultimoSinRecibir.fechaPedido)}
+                </span>
+              )}
+
               <button
                 type="button"
-                onClick={handleExportarDuplicados}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-800"
+                onClick={() => setMostrarDuplicadosDetalle((v) => !v)}
+                className="group flex flex-col items-center gap-1.5 text-center"
               >
-                <Download className="h-4 w-4" />
-                Exportar pedido CSV
+                <div
+                  className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 bg-[#f8faf6] shadow-xs transition group-hover:scale-105 ${
+                    mostrarDuplicadosDetalle
+                      ? 'border-[#0f3d2e] ring-2 ring-emerald-300'
+                      : 'border-[#0f3d2e]'
+                  }`}
+                >
+                  <Copy className="h-8 w-8 text-[#0f3d2e]" />
+                  {/* Parte baja del icono: círculo verde (ya solicitados) y círculo rojo (faltan por solicitar) */}
+                  <span
+                    title="Duplicados ya solicitados (pendientes de colocar)"
+                    className="absolute -bottom-1.5 -left-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs"
+                  >
+                    {yaSolicitadosCount}
+                  </span>
+                  <span
+                    title="Crotales perdidos que faltan por solicitar"
+                    className="absolute -bottom-1.5 -right-1.5 flex h-7 min-w-7 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1.5 font-mono text-xs font-extrabold text-white shadow-xs"
+                  >
+                    {faltanPorSolicitar.length}
+                  </span>
+                </div>
+                <span className="mt-1 text-xs font-extrabold text-[#0f1f18] underline decoration-emerald-400/70 underline-offset-2">
+                  Duplicados
+                </span>
               </button>
             </div>
-          )}
-        </div>
 
-        <div className="divide-y divide-[#eef2eb]">
-          {duplicados.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm font-semibold text-emerald-800">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              Ninguna res tiene crotales caídos o pendientes de duplicado.
-            </div>
-          ) : (
-            duplicados.map((animal) => (
-              <div
-                key={animal.id}
-                className="flex flex-col gap-3 p-4 transition hover:bg-[#fafbf8] sm:flex-row sm:items-center sm:justify-between sm:px-5"
-              >
-                <div className="flex items-center gap-3">
-                  <CrotalVisual
-                    crotal={animal.crotal}
-                    numeroCorto={animal.numeroCorto}
-                    especie={animal.especie}
-                    estadoCrotal={animal.estadoCrotal}
-                    variante="badge"
-                  />
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-sm font-extrabold text-[#0f1f18]">
-                        {animal.crotal}
-                      </span>
-                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-950">
-                        {animal.estadoCrotal === 'FALTAN_AMBOS'
-                          ? 'Faltan ambos (2 uds.)'
-                          : animal.estadoCrotal === 'FALTA_IZQUIERDO'
-                            ? 'Falta izquierdo (1 ud.)'
-                            : 'Falta derecho (1 ud.)'}
-                      </span>
-                    </div>
-                    {animal.notas && (
-                      <p className="mt-1 text-xs text-[#52655c]">{animal.notas}</p>
+            {/* Desplegable al pulsar en Duplicados */}
+            {mostrarDuplicadosDetalle && (
+              <div className="mt-4 space-y-4 border-t border-[#e6ece2] pt-4">
+                {/* Botón con icono: Registrar pérdida crotal */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!animalPerdidaId && activosParaPerdida[0]) {
+                      setAnimalPerdidaId(activosParaPerdida[0].id);
+                    }
+                    setMostrarFormPerdida((v) => !v);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-xs font-extrabold text-white shadow-xs hover:bg-red-800"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  Registrar pérdida crotal
+                </button>
+
+                {mostrarFormPerdida && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const targetId = animalPerdidaId || activosParaPerdida[0]?.id;
+                      if (!targetId) return;
+                      onRegistrarPerdidaCrotal?.(targetId, orejaPerdida);
+                      setMostrarFormPerdida(false);
+                    }}
+                    className="space-y-2.5 rounded-xl border border-red-200 bg-red-50/50 p-3.5 text-xs"
+                  >
+                    <label className="block font-bold text-[#0f1f18]">
+                      Animal que ha perdido el crotal
+                      <select
+                        value={animalPerdidaId || activosParaPerdida[0]?.id || ''}
+                        onChange={(e) => setAnimalPerdidaId(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs font-semibold"
+                      >
+                        {activosParaPerdida.length === 0 ? (
+                          <option value="">Todas las reses tienen incidencia ya registrada</option>
+                        ) : (
+                          activosParaPerdida.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              #{a.numeroCorto} {a.nombre ? `(${a.nombre})` : ''} — {a.crotal}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </label>
+                    <label className="block font-bold text-[#0f1f18]">
+                      Crotal perdido
+                      <select
+                        value={orejaPerdida}
+                        onChange={(e) => setOrejaPerdida(e.target.value as EstadoCrotalFisico)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-2 text-xs font-semibold"
+                      >
+                        <option value="FALTA_IZQUIERDO">Falta izquierdo (1 ud.)</option>
+                        <option value="FALTA_DERECHO">Falta derecho (1 ud.)</option>
+                        <option value="FALTAN_AMBOS">Faltan ambos (2 uds.)</option>
+                      </select>
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={activosParaPerdida.length === 0}
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-40"
+                    >
+                      <Plus className="h-4 w-4 text-amber-300" />
+                      Añadir a pendientes de solicitud
+                    </button>
+                  </form>
+                )}
+
+                {/* Lista: Duplicados de crotales pendientes de solicitud */}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-red-800">
+                      Duplicados de crotales pendientes de solicitud ({faltanPorSolicitar.length})
+                    </h3>
+                    {duplicados.length > 0 && (
+                      <div className="flex gap-1.5">
+                        <BotonCopiar valor={textoDuplicados} etiqueta="Copiar" compacto />
+                        <button
+                          type="button"
+                          onClick={handleExportarDuplicados}
+                          className="inline-flex items-center gap-1 rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-bold text-white"
+                        >
+                          <Download className="h-3 w-3" />
+                          CSV
+                        </button>
+                      </div>
                     )}
                   </div>
+
+                  {faltanPorSolicitar.length === 0 ? (
+                    <p className="rounded-xl bg-[#f8faf6] p-3 text-xs font-semibold text-emerald-800">
+                      No hay crotales pendientes de solicitar.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {faltanPorSolicitar.map((animal) => (
+                        <div
+                          key={animal.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50/30 p-3 text-xs"
+                        >
+                          <div>
+                            <span className="font-mono font-extrabold text-[#0f1f18]">
+                              #{animal.numeroCorto} · {animal.crotal}
+                            </span>
+                            <p className="text-[11px] text-[#52655c]">
+                              {animal.estadoCrotal === 'FALTAN_AMBOS'
+                                ? 'Faltan ambos (2 uds.)'
+                                : animal.estadoCrotal === 'FALTA_IZQUIERDO'
+                                  ? 'Falta izquierdo (1 ud.)'
+                                  : 'Falta derecho (1 ud.)'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onResolverDuplicado(animal.id)}
+                            className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-900"
+                          >
+                            Ya colocado
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onCrearPedidoDuplicados?.({
+                            proveedor: estado.explotacion.proveedorCrotalHabitual || 'AZASA',
+                            formaEnvio: envioPedido,
+                            items: faltanPorSolicitar.map((a) => ({
+                              animalId: a.id,
+                              crotal: a.crotal,
+                              numeroCorto: a.numeroCorto,
+                              detalle: a.estadoCrotal,
+                            })),
+                          })
+                        }
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-4 py-2.5 text-xs font-extrabold text-white hover:bg-[#16523e]"
+                      >
+                        <Mail className="h-4 w-4 text-amber-300" />
+                        Solicitar duplicados pendientes ({faltanPorSolicitar.length})
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <BotonCopiar valor={animal.crotal} etiqueta="Copiar" compacto />
-                  <button
-                    type="button"
-                    onClick={() => onResolverDuplicado(animal.id)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Ya colocado
-                  </button>
+                {/* Lista de pedidos realizados (No recibidos vs Recibidos) */}
+                <div className="space-y-3 border-t border-[#e6ece2] pt-3">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0f1f18]">
+                    Pedidos de duplicados realizados ({pedidosDup.length})
+                  </h3>
+
+                  {pedidosDup.length === 0 ? (
+                    <p className="rounded-xl bg-[#f8faf6] p-3 text-xs text-[#52655c]">
+                      Todavía no se ha realizado ningún pedido de duplicados.
+                    </p>
+                  ) : (
+                    <>
+                      {pedidosNoRecibidos.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-extrabold text-amber-800">
+                            No recibidos ({pedidosNoRecibidos.length})
+                          </p>
+                          {pedidosNoRecibidos.map((ped) => (
+                            <div
+                              key={ped.id}
+                              className="space-y-2 rounded-xl border border-amber-300 bg-amber-50/50 p-3 text-xs"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                  <span className="font-bold text-[#0f1f18]">
+                                    Pedido del {formatearFechaEs(ped.fechaPedido)} · {ped.proveedor}
+                                  </span>
+                                  <p className="text-[11px] text-[#52655c]">
+                                    {ped.items.length} crotal(es) · Pendiente de recepción
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => onConfirmarRecepcionPedidoDuplicados?.(ped.id)}
+                                  className="rounded-lg bg-amber-700 px-3 py-1.5 text-[11px] font-extrabold text-white hover:bg-amber-800"
+                                >
+                                  Confirmar recepción
+                                </button>
+                              </div>
+                              <div className="space-y-1">
+                                {ped.items.map((it) => (
+                                  <div
+                                    key={it.animalId}
+                                    className="flex items-center justify-between rounded-lg bg-white px-2.5 py-1.5 text-[11px]"
+                                  >
+                                    <span className="font-mono font-bold">
+                                      #{it.numeroCorto} · {it.crotal}
+                                    </span>
+                                    <span className="text-amber-800">Esperando entrega</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {pedidosRecibidos.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-extrabold text-emerald-900">
+                            Recibidos ({pedidosRecibidos.length})
+                          </p>
+                          {pedidosRecibidos.map((ped) => (
+                            <div
+                              key={ped.id}
+                              className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 text-xs"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-bold text-[#0f1f18]">
+                                  Pedido {formatearFechaEs(ped.fechaPedido)} · Recibido{' '}
+                                  {formatearFechaEs(ped.fechaRecepcion)}
+                                </span>
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-900">
+                                  Recibido
+                                </span>
+                              </div>
+                              <div className="space-y-1.5">
+                                {ped.items.map((it) => (
+                                  <div
+                                    key={it.animalId}
+                                    className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-[11px]"
+                                  >
+                                    <span className="font-mono font-bold text-[#0f1f18]">
+                                      #{it.numeroCorto} · {it.crotal}
+                                    </span>
+                                    {it.colocado ? (
+                                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Colocado
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          onMarcarDuplicadoColocado?.(ped.id, it.animalId)
+                                        }
+                                        className="rounded-lg bg-[#0f3d2e] px-2.5 py-1 text-[11px] font-extrabold text-white hover:bg-[#16523e]"
+                                      >
+                                        Marcar colocado
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </section>
+            )}
+          </section>
+        );
+      })()}
     </div>
   );
 }

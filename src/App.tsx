@@ -1547,6 +1547,57 @@ export default function App() {
               }));
               mostrarToast('Pedido de crotales anulado y aviso eliminado de la Agenda.');
             }}
+            onRegistrarPerdidaCrotal={(animalId, nuevoEstado) => {
+              cambiarEstadoCrotal(animalId, nuevoEstado);
+              mostrarToast('Pérdida de crotal registrada en pendientes de solicitud.');
+            }}
+            onCrearPedidoDuplicados={(datos) => {
+              const hoy = hoyIso();
+              setEstado((prev) => ({
+                ...prev,
+                pedidosDuplicados: [
+                  {
+                    id: `pdup-${Date.now()}`,
+                    fechaPedido: hoy,
+                    proveedor: datos.proveedor,
+                    formaEnvio: datos.formaEnvio,
+                    recibido: false,
+                    items: datos.items.map((it) => ({ ...it, colocado: false })),
+                  },
+                  ...(prev.pedidosDuplicados || []),
+                ],
+              }));
+              mostrarToast(`Pedido de ${datos.items.length} duplicado(s) registrado.`);
+            }}
+            onConfirmarRecepcionPedidoDuplicados={(pedidoId) => {
+              const hoy = hoyIso();
+              setEstado((prev) => ({
+                ...prev,
+                pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
+                  p.id === pedidoId ? { ...p, recibido: true, fechaRecepcion: hoy } : p,
+                ),
+              }));
+              mostrarToast('Recepción de duplicados confirmada. Ahora puedes marcarlos al colocarlos.');
+            }}
+            onMarcarDuplicadoColocado={(pedidoId, animalId) => {
+              setEstado((prev) => ({
+                ...prev,
+                pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
+                  p.id === pedidoId
+                    ? {
+                        ...p,
+                        items: p.items.map((it) =>
+                          it.animalId === animalId ? { ...it, colocado: true } : it,
+                        ),
+                      }
+                    : p,
+                ),
+                animales: prev.animales.map((a) =>
+                  a.id === animalId ? { ...a, estadoCrotal: 'OK' } : a,
+                ),
+              }));
+              mostrarToast('Duplicado marcado como colocado y crotal restaurado a OK.');
+            }}
           />
         )}
 
