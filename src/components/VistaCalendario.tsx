@@ -327,6 +327,7 @@ export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
     }
     if (ev.accionDestino === 'COLA_REMOWEB') onIrA('robot');
     else if (ev.accionDestino === 'SALIDAS_DOCS') onIrA('salidas');
+    else if (ev.accionDestino === 'CROTALES') onIrA('crotales');
   };
 
   return (
@@ -625,7 +626,9 @@ export function VistaCalendario({ estado, onAbrirFichaAnimal, onIrA }: Props) {
                         ? 'Ver ficha vaca'
                         : ev.accionDestino === 'COLA_REMOWEB'
                           ? 'Ir a Cola RemoWeb'
-                          : 'Ver Carpeta Docs'}
+                          : ev.accionDestino === 'CROTALES'
+                            ? 'Ir a Crotales'
+                            : 'Ver Carpeta Docs'}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>

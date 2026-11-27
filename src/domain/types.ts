@@ -315,6 +315,15 @@ export interface LoteCrotales {
   origen: string; // Ej: OCA Cangas del Narcea / AZASA
 }
 
+export interface PedidoCrotalesActivo {
+  id: string;
+  fechaPedido: string; // YYYY-MM-DD
+  fechaAvisoCalendario: string; // YYYY-MM-DD
+  cantidad: number;
+  proveedor: string;
+  formaEnvio?: FormaEnvioDuplicado;
+}
+
 export interface DocumentoExplotacion {
   id: string;
   categoria: 'SANEAMIENTO' | 'PSI' | 'DIB' | 'RECETA_PRESVET' | 'GUIA_MOVIMIENTO' | 'OTRO';
@@ -426,6 +435,7 @@ export interface EstadoGanaderia {
   pesajes?: PesajeAnimal[];
   movimientosEconomicos?: MovimientoEconomico[];
   razasPersonalizadas?: string[];
+  pedidoCrotalesActivo?: PedidoCrotalesActivo;
   ultimaImportacionRobot?: {
     fechaIso: string;
     archivo: string;

@@ -3,11 +3,14 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
+  Clock,
   Copy,
   Download,
   ExternalLink,
+  Mail,
   Plus,
   Tag,
+  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -17,9 +20,9 @@ import {
   sugerirSiguienteCrotal,
 } from '../domain/crotales';
 import { descargarArchivo, generarCsvSolicitudDuplicados } from '../domain/exportadores';
-import { hoyIso } from '../domain/fechas';
+import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import { obtenerReglasNormativas } from '../domain/reglasNormativas';
-import type { EstadoGanaderia, LoteCrotales } from '../domain/types';
+import type { EstadoGanaderia, FormaEnvioDuplicado, LoteCrotales } from '../domain/types';
 import { BotonCopiar } from './BadgeNivel';
 import { CrotalVisual } from './CrotalVisual';
 
@@ -27,9 +30,23 @@ interface Props {
   estado: EstadoGanaderia;
   onAnadirLote: (lote: LoteCrotales) => void;
   onResolverDuplicado: (animalId: string) => void;
+  onSolicitarCrotales?: (datos: {
+    cantidad: number;
+    proveedor: string;
+    formaEnvio: FormaEnvioDuplicado;
+  }) => void;
+  onAplazarPedidoCrotales?: () => void;
+  onAnularPedidoCrotales?: () => void;
 }
 
-export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Props) {
+export function VistaCrotales({
+  estado,
+  onAnadirLote,
+  onResolverDuplicado,
+  onSolicitarCrotales,
+  onAplazarPedidoCrotales,
+  onAnularPedidoCrotales,
+}: Props) {
   const [prefijo, setPrefijo] = useState('ES22030001');
   const [desde, setDesde] = useState('21');
   const [hasta, setHasta] = useState('50');
@@ -37,6 +54,12 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
   const [copiado, setCopiado] = useState(false);
   const [mostrarCajonDetalle, setMostrarCajonDetalle] = useState(false);
   const [mostrarFormNuevaRemesa, setMostrarFormNuevaRemesa] = useState(false);
+  const [mostrarFormSolicitar, setMostrarFormSolicitar] = useState(false);
+  const [cantidadPedido, setCantidadPedido] = useState('20');
+  const [proveedorPedido, setProveedorPedido] = useState<string>(
+    estado.explotacion.proveedorCrotalHabitual || 'AZASA',
+  );
+  const [envioPedido, setEnvioPedido] = useState<FormaEnvioDuplicado>('CORREO_ORDINARIO');
   const [margenAviso, setMargenAviso] = useState<number>(() => {
     try {
       const saved = window.localStorage.getItem('ganaderia_margen_crotales');
@@ -165,6 +188,16 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
         <div className="grid grid-cols-2 items-center gap-3">
             {/* Izquierda: Icono circular de crotales disponibles en el cajón (clic para desplegar remesas) */}
             <div className="flex flex-col items-center gap-2 text-center">
+              {estado.pedidoCrotalesActivo && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarCajonDetalle(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold text-sky-900 shadow-2xs"
+                >
+                  <Mail className="h-3 w-3 text-sky-700" />
+                  Pedido realizado · {formatearFechaEs(estado.pedidoCrotalesActivo.fechaPedido)}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setMostrarCajonDetalle((v) => !v)}
@@ -315,25 +348,153 @@ export function VistaCrotales({ estado, onAnadirLote, onResolverDuplicado }: Pro
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-2 pt-1">
+              {estado.pedidoCrotalesActivo && (
+                <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs">
+                  <div className="flex items-center gap-1.5 font-extrabold text-sky-950">
+                    <Mail className="h-4 w-4 text-sky-700" />
+                    Pedido realizado el {formatearFechaEs(estado.pedidoCrotalesActivo.fechaPedido)} (
+                    {estado.pedidoCrotalesActivo.cantidad} uds. ·{' '}
+                    {estado.pedidoCrotalesActivo.proveedor})
+                  </div>
+                  <p className="text-[11px] text-sky-900">
+                    Aviso en Agenda:{' '}
+                    <strong>
+                      {formatearFechaEs(estado.pedidoCrotalesActivo.fechaAvisoCalendario)}
+                    </strong>{' '}
+                    — Confirmar Recepción Crotales y Añadir a Cajón Virtual.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMostrarFormNuevaRemesa(true);
+                        setMostrarFormSolicitar(false);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#0f3d2e] px-2.5 py-1.5 text-[11px] font-bold text-white"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 text-amber-300" />
+                      Confirmar recepción
+                    </button>
+                    {onAplazarPedidoCrotales && (
+                      <button
+                        type="button"
+                        onClick={onAplazarPedidoCrotales}
+                        className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-sky-900"
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                        Aplazar 1 semana
+                      </button>
+                    )}
+                    {onAnularPedidoCrotales && (
+                      <button
+                        type="button"
+                        onClick={onAnularPedidoCrotales}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-800"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                        Se ha anulado el pedido
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setMostrarFormNuevaRemesa((v) => !v)}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2.5 text-xs font-extrabold text-white hover:bg-[#16523e]"
+                  onClick={() => {
+                    setMostrarFormSolicitar((v) => !v);
+                    setMostrarFormNuevaRemesa(false);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3 py-2.5 text-xs font-extrabold text-white hover:bg-[#16523e]"
                 >
-                  <Plus className="h-4 w-4 text-amber-300" />
-                  Solicitar nueva remesa de crotales
+                  <Mail className="h-4 w-4 text-amber-300" />
+                  Solicitar crotales
                 </button>
-                <a
-                  href={reglas.portalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#dce4d6] bg-white px-3 py-2.5 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarFormNuevaRemesa((v) => !v);
+                    setMostrarFormSolicitar(false);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-xs font-extrabold text-emerald-950 hover:bg-emerald-100"
                 >
-                  RemoWeb
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                  <Plus className="h-4 w-4" />
+                  Añadir remesa recibida
+                </button>
               </div>
+
+              {mostrarFormSolicitar && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onSolicitarCrotales?.({
+                      cantidad: Math.max(1, Number(cantidadPedido) || 20),
+                      proveedor: proveedorPedido,
+                      formaEnvio: envioPedido,
+                    });
+                    setMostrarFormSolicitar(false);
+                  }}
+                  className="mt-2 space-y-3 rounded-xl border border-sky-200 bg-sky-50/50 p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-extrabold text-[#0f1f18]">
+                      Solicitar crotales (crea aviso en Agenda en 1 semana)
+                    </h4>
+                    <a
+                      href={reglas.portalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-800 underline"
+                    >
+                      RemoWeb
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="text-xs font-semibold text-[#31453b]">
+                      Cantidad
+                      <input
+                        type="number"
+                        min={1}
+                        value={cantidadPedido}
+                        onChange={(e) => setCantidadPedido(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2.5 py-1.5 font-mono text-xs"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-[#31453b]">
+                      Proveedor
+                      <select
+                        value={proveedorPedido}
+                        onChange={(e) => setProveedorPedido(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2 py-1.5 text-xs"
+                      >
+                        <option value="AZASA">AZASA</option>
+                        <option value="DATAMARS">DATAMARS</option>
+                        <option value="OCA">OCA</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-semibold text-[#31453b]">
+                      Envío
+                      <select
+                        value={envioPedido}
+                        onChange={(e) => setEnvioPedido(e.target.value as FormaEnvioDuplicado)}
+                        className="mt-1 w-full rounded-xl border border-[#dce4d6] bg-white px-2 py-1.5 text-xs"
+                      >
+                        <option value="CORREO_ORDINARIO">Ordinario</option>
+                        <option value="CORREO_CERTIFICADO">Certificado</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-sky-800 px-4 py-2.5 text-xs font-extrabold text-white hover:bg-sky-900"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Finalizar solicitud de crotales
+                  </button>
+                </form>
+              )}
 
               {mostrarFormNuevaRemesa && (
                 <form

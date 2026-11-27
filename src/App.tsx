@@ -1498,12 +1498,54 @@ export default function App() {
               setEstado((prev) => ({
                 ...prev,
                 lotesCrotales: [...prev.lotesCrotales, lote],
+                pedidoCrotalesActivo: undefined,
               }));
-              mostrarToast('Nueva remesa de crotales añadida al stock.');
+              mostrarToast('Remesa recibida añadida al cajón virtual.');
             }}
             onResolverDuplicado={(animalId) => {
               cambiarEstadoCrotal(animalId, 'OK');
               mostrarToast('Duplicado marcado como colocado.');
+            }}
+            onSolicitarCrotales={(datos) => {
+              const hoy = hoyIso();
+              setEstado((prev) => ({
+                ...prev,
+                pedidoCrotalesActivo: {
+                  id: `ped-${Date.now()}`,
+                  fechaPedido: hoy,
+                  fechaAvisoCalendario: sumarDiasIso(hoy, 7),
+                  cantidad: datos.cantidad,
+                  proveedor: datos.proveedor,
+                  formaEnvio: datos.formaEnvio,
+                },
+              }));
+              mostrarToast(
+                'Pedido registrado. Aviso en la Agenda en 1 semana para confirmar recepción.',
+              );
+            }}
+            onAplazarPedidoCrotales={() => {
+              setEstado((prev) =>
+                prev.pedidoCrotalesActivo
+                  ? {
+                      ...prev,
+                      pedidoCrotalesActivo: {
+                        ...prev.pedidoCrotalesActivo,
+                        fechaAvisoCalendario: sumarDiasIso(
+                          prev.pedidoCrotalesActivo.fechaAvisoCalendario,
+                          7,
+                        ),
+                      },
+                    }
+                  : prev,
+              );
+              mostrarToast('Aviso de recepción de crotales aplazado 1 semana.');
+            }}
+            onAnularPedidoCrotales={() => {
+              setEstado((prev) => ({
+                ...prev,
+                pedidoCrotalesActivo: undefined,
+              }));
+              mostrarToast('Pedido de crotales anulado y aviso eliminado de la Agenda.');
             }}
           />
         )}

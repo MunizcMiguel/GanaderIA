@@ -98,7 +98,7 @@ export interface EventoCalendario {
   numeroCorto?: string;
   animalId?: string;
   animalNombre?: string;
-  accionDestino?: 'FICHA_ANIMAL' | 'COLA_REMOWEB' | 'SALIDAS_DOCS';
+  accionDestino?: 'FICHA_ANIMAL' | 'COLA_REMOWEB' | 'SALIDAS_DOCS' | 'CROTALES';
 }
 
 export interface ResumenDiaCalendario {
@@ -403,6 +403,24 @@ export function construirEventosCalendario(
         accionDestino: 'SALIDAS_DOCS',
       });
     }
+  }
+
+  // 6. Pedido de crotales pendiente de confirmar recepción (aviso semanal en Agenda)
+  if (estado.pedidoCrotalesActivo) {
+    let fechaAviso = estado.pedidoCrotalesActivo.fechaAvisoCalendario;
+    // Si ya pasó la fecha prevista sin confirmarse ni anularse, se aplaza de 7 en 7 días
+    while (fechaAviso < fechaRefIso) {
+      fechaAviso = sumarDiasIso(fechaAviso, 7);
+    }
+    items.push({
+      id: `cal-pedido-crotales-${estado.pedidoCrotalesActivo.id}`,
+      fecha: fechaAviso,
+      categoria: 'REGISTRO_PRINCIPADO',
+      naturaleza: 'PREVISTO',
+      titulo: 'Confirmar Recepción Crotales y Añadir a Cajón Virtual',
+      detalle: `Pedido del ${estado.pedidoCrotalesActivo.fechaPedido} (${estado.pedidoCrotalesActivo.cantidad} uds. · ${estado.pedidoCrotalesActivo.proveedor})`,
+      accionDestino: 'CROTALES',
+    });
   }
 
   return items.sort((a, b) => a.fecha.localeCompare(b.fecha));
