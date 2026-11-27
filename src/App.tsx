@@ -192,10 +192,6 @@ export default function App() {
     () => estado.eventos.filter((e) => e.estadoTramite === 'PENDIENTE').length,
     [estado.eventos],
   );
-  const numCriticas = useMemo(
-    () => alertas.filter((a) => a.nivel === 'CRITICA').length,
-    [alertas],
-  );
 
   // --- Acciones de dominio ---
   const registrarNacimiento = (datos: {
@@ -1296,8 +1292,6 @@ export default function App() {
       corto: 'Inicio',
       grupo: 'operacion',
       icono: LayoutDashboard,
-      badge: numCriticas,
-      badgeColor: numCriticas > 0 ? 'red' : 'green',
     },
     {
       id: 'censo',
