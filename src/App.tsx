@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardList,
   GitCompare,
+  Landmark,
   LayoutDashboard,
   Settings,
   Smartphone,
@@ -39,6 +40,7 @@ import { VistaCrotales } from './components/VistaCrotales';
 import { VistaReproduccion } from './components/VistaReproduccion';
 import { VistaRobotCuadre } from './components/VistaRobotCuadre';
 import { VistaSalidasDocs } from './components/VistaSalidasDocs';
+import { VistaSitran } from './components/VistaSitran';
 import {
   cargarAlmacenExplotaciones,
   guardarAlmacenExplotaciones,
@@ -89,6 +91,7 @@ type Pestana =
   | 'panel'
   | 'calendario'
   | 'robot'
+  | 'sitran'
   | 'censo'
   | 'crotales'
   | 'reproduccion'
@@ -580,6 +583,32 @@ export default function App() {
       }),
     }));
     mostrarToast(`Trámite ${ev.crotal} marcado como confirmado en el Principado.`);
+  };
+
+  const marcarTodosTramitados = () => {
+    const hoy = hoyIso();
+    const pendientesIds = new Set(
+      estado.eventos.filter((e) => e.estadoTramite === 'PENDIENTE').map((e) => e.id),
+    );
+    if (pendientesIds.size === 0) return;
+
+    setEstado((prev) => ({
+      ...prev,
+      eventos: prev.eventos.map((e) =>
+        pendientesIds.has(e.id)
+          ? {
+              ...e,
+              estadoTramite: 'TRAMITADO',
+              fechaTramitado: hoy,
+              numeroJustificante: `REMO-${hoy.replace(/-/g, '')}-${e.crotal.slice(-4)}`,
+            }
+          : e,
+      ),
+      animales: prev.animales.map((a) =>
+        a.estado === 'ACTIVO' && !a.enCensoOficial ? { ...a, enCensoOficial: true } : a,
+      ),
+    }));
+    mostrarToast(`${pendientesIds.size} trámite(s) enviados y confirmados en SITRAN / RemoWeb.`);
   };
 
   const marcarCrotalColocado = (eventoId: string) => {
@@ -1195,7 +1224,8 @@ export default function App() {
   }[] = [
     { id: 'panel', label: 'Semáforo', corto: 'Inicio', grupo: 'operacion', icono: LayoutDashboard, badge: numCriticas || undefined },
     { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
-    { id: 'robot', label: 'Robot y RemoWeb', corto: 'Robot', grupo: 'operacion', icono: GitCompare, badge: numPendientes || undefined },
+    { id: 'robot', label: 'Robot', corto: 'Robot', grupo: 'operacion', icono: GitCompare },
+    { id: 'sitran', label: 'SITRAN', corto: 'SITRAN', grupo: 'operacion', icono: Landmark, badge: numPendientes || undefined },
     { id: 'censo', label: 'Censo y Libro', corto: 'Censo', grupo: 'operacion', icono: ClipboardList },
     { id: 'crotales', label: 'Crotales', corto: 'Crotales', grupo: 'gestion', icono: Tag },
     { id: 'reproduccion', label: 'Reproducción', corto: 'Reprod.', grupo: 'gestion', icono: CalendarHeart },
@@ -1400,6 +1430,14 @@ export default function App() {
                 },
               }))
             }
+          />
+        )}
+
+        {pestana === 'sitran' && (
+          <VistaSitran
+            estado={estado}
+            onMarcarTramitado={marcarTramitado}
+            onMarcarTodosTramitados={marcarTodosTramitados}
           />
         )}
 
