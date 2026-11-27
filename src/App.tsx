@@ -4,7 +4,6 @@ import {
   CalendarHeart,
   CheckCircle2,
   GitCompare,
-  Landmark,
   LayoutDashboard,
   Settings,
   Smartphone,
@@ -91,7 +90,6 @@ type Pestana =
   | 'panel'
   | 'calendario'
   | 'robot'
-  | 'sitran'
   | 'censo'
   | 'crotales'
   | 'reproduccion'
@@ -1242,10 +1240,9 @@ export default function App() {
     badge?: number;
   }[] = [
     { id: 'panel', label: 'Semáforo', corto: 'Inicio', grupo: 'operacion', icono: LayoutDashboard, badge: numCriticas || undefined },
-    { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
-    { id: 'robot', label: 'Robot', corto: 'Robot', grupo: 'operacion', icono: GitCompare },
-    { id: 'sitran', label: 'SITRAN', corto: 'SITRAN', grupo: 'operacion', icono: Landmark, badge: numPendientes || undefined },
     { id: 'censo', label: 'MiGanado', corto: 'MiGanado', grupo: 'operacion', icono: IconoMiGanado },
+    { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
+    { id: 'robot', label: 'Sincronizar Robot/SITRAN', corto: 'Robot/SITRAN', grupo: 'operacion', icono: GitCompare, badge: numPendientes || undefined },
     { id: 'crotales', label: 'Crotales', corto: 'Crotales', grupo: 'gestion', icono: Tag },
     { id: 'reproduccion', label: 'Reproducción', corto: 'Reprod.', grupo: 'gestion', icono: CalendarHeart },
     { id: 'salidas', label: 'Salidas y Docs', corto: 'Salidas', grupo: 'gestion', icono: Truck },
@@ -1433,31 +1430,30 @@ export default function App() {
         )}
 
         {pestana === 'robot' && (
-          <VistaRobotCuadre
-            estado={estado}
-            onIncorporarDiscrepancia={incorporarDiscrepanciaRobot}
-            onMarcarTramitado={marcarTramitado}
-            onMarcarCrotalColocado={marcarCrotalColocado}
-            onRegistrarImportacion={(archivo, fuente, registrosLeidos) =>
-              setEstado((prev) => ({
-                ...prev,
-                ultimaImportacionRobot: {
-                  fechaIso: new Date().toISOString(),
-                  archivo,
-                  fuente,
-                  registrosLeidos,
-                },
-              }))
-            }
-          />
-        )}
-
-        {pestana === 'sitran' && (
-          <VistaSitran
-            estado={estado}
-            onMarcarTramitado={marcarTramitado}
-            onMarcarTodosTramitados={marcarTodosTramitados}
-          />
+          <div className="space-y-5">
+            <VistaRobotCuadre
+              estado={estado}
+              onIncorporarDiscrepancia={incorporarDiscrepanciaRobot}
+              onMarcarTramitado={marcarTramitado}
+              onMarcarCrotalColocado={marcarCrotalColocado}
+              onRegistrarImportacion={(archivo, fuente, registrosLeidos) =>
+                setEstado((prev) => ({
+                  ...prev,
+                  ultimaImportacionRobot: {
+                    fechaIso: new Date().toISOString(),
+                    archivo,
+                    fuente,
+                    registrosLeidos,
+                  },
+                }))
+              }
+            />
+            <VistaSitran
+              estado={estado}
+              onMarcarTramitado={marcarTramitado}
+              onMarcarTodosTramitados={marcarTodosTramitados}
+            />
+          </div>
         )}
 
         {pestana === 'censo' && (
