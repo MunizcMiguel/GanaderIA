@@ -9,11 +9,13 @@ import {
   FileCheck2,
   FolderPlus,
   Layers,
+  Minus,
   Plus,
   Scale,
   Search,
   ShieldAlert,
   ShoppingCart,
+  SlidersHorizontal,
   Syringe,
   Tag,
   Upload,
@@ -77,7 +79,7 @@ interface Props {
   onAbrirCompra: () => void;
   onAbrirLibrosOficiales: (libro?: 'EXPLOTACION' | 'TRATAMIENTOS') => void;
   onAbrirTratamiento: (animal: UnidadGanadera) => void;
-  onAbrirBajaAnimal: (animal: UnidadGanadera) => void;
+  onAbrirBajaAnimal: (animal?: UnidadGanadera) => void;
 }
 
 type OrdenCenso = 'CROTAL' | 'NOMBRE' | 'EDAD' | 'DEL' | 'ULTIMO_PARTO';
@@ -115,6 +117,8 @@ export function VistaCenso({
 
   const [nuevoCorralNombre, setNuevoCorralNombre] = useState('');
   const [mostrarFormCorral, setMostrarFormCorral] = useState(false);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [mostrarMenuAlta, setMostrarMenuAlta] = useState(false);
   const [mensajeImport, setMensajeImport] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -296,94 +300,124 @@ export function VistaCenso({
     setMostrarFormCorral(false);
   };
 
+  const filtrosActivos =
+    (filtro !== 'ACTIVOS' ? 1 : 0) +
+    (corralFiltro !== 'TODOS' ? 1 : 0) +
+    (etapaFiltro !== 'TODAS' ? 1 : 0) +
+    (sexoFiltro !== 'TODOS' ? 1 : 0) +
+    (razaFiltro !== 'TODAS' ? 1 : 0);
+
   return (
-    <div className="animate-fade-up space-y-5">
-      {/* Cabecera */}
-      <div className="card-surface flex flex-col gap-3 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-extrabold text-[#0f1f18]">
-              Censo Unificado, Corrales y Libro Registro
-            </h2>
-            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-extrabold text-emerald-900">
-              {ugmRebano.totalUgm} UGM
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-[#52655c]">
-            {ugmRebano.vacas} vacas · {ugmRebano.novillas} novillas · {ugmRebano.toros} toros ·{' '}
-            {ugmRebano.terneros} terneros — pulsa en cualquier res para abrir fotos, pesos, árbol
-            genealógico y gestión rápida.
-          </p>
+    <div className="animate-fade-up space-y-4">
+      {/* Cabecera: Título + Iconos visuales por tipo + 2 botones (Alta / Baja) */}
+      <div className="card-surface space-y-4 rounded-2xl p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-extrabold text-[#0f1f18]">Censo y Libro Registro</h2>
+          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-mono text-xs font-extrabold text-emerald-900">
+            {ugmRebano.totalUgm} UGM
+          </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {/* Resumen visual de ganado en 4 iconos circulares con badge rojo superpuesto */}
+        <div className="grid grid-cols-4 gap-2 pt-1">
+          {(
+            [
+              { etapa: 'VACA' as EtapaAnimal, label: 'Vacas', count: ugmRebano.vacas, emoji: '🐄' },
+              { etapa: 'NOVILLA' as EtapaAnimal, label: 'Novillas', count: ugmRebano.novillas, emoji: '🐮' },
+              { etapa: 'TORO' as EtapaAnimal, label: 'Toros', count: ugmRebano.toros, emoji: '🐂' },
+              { etapa: 'TERNERO' as EtapaAnimal, label: 'Terneros', count: ugmRebano.terneros, emoji: '🐾' },
+            ] as const
+          ).map((item) => {
+            const activo = etapaFiltro === item.etapa;
+            return (
+              <button
+                key={item.etapa}
+                type="button"
+                onClick={() => setEtapaFiltro(activo ? 'TODAS' : item.etapa)}
+                className="group flex flex-col items-center gap-1.5 text-center"
+              >
+                <div
+                  className={`relative flex h-14 w-14 items-center justify-center rounded-full border-2 text-2xl shadow-xs transition ${
+                    activo
+                      ? 'border-[#0f3d2e] bg-emerald-100 ring-2 ring-emerald-300'
+                      : 'border-[#dce4d6] bg-[#f8faf6] group-hover:border-emerald-400'
+                  }`}
+                >
+                  <span aria-hidden="true">{item.emoji}</span>
+                  <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 font-mono text-[11px] font-extrabold text-white shadow-xs">
+                    {item.count}
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-bold ${
+                    activo ? 'text-[#0f3d2e]' : 'text-[#4a5d54]'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Solamente 2 botones: Alta Animal / Baja Animal */}
+        <div className="relative grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            onClick={() => {
-              setModoSeleccion((v) => !v);
-              setSeleccionados([]);
-            }}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition ${
-              modoSeleccion
-                ? 'border-[#0f3d2e] bg-emerald-50 text-[#0f3d2e]'
-                : 'border-[#dce4d6] bg-white text-[#1f3329] hover:bg-[#f4f6f1]'
-            }`}
-          >
-            <CheckSquare className="h-4 w-4" />
-            {modoSeleccion ? 'Salir lote' : 'Acciones lote'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAbrirLibrosOficiales('EXPLOTACION')}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100"
-          >
-            <BookOpenCheck className="h-4 w-4" />
-            Libros PDF
-          </button>
-          <button
-            type="button"
-            onClick={handleExportarExcelCsv}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3 py-2 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
-          >
-            <Download className="h-4 w-4" />
-            Excel CSV
-          </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".csv,.txt"
-            className="hidden"
-            onChange={(e) => {
-              handleImportarCsv(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => importInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#dce4d6] bg-white px-3 py-2 text-xs font-bold text-[#1f3329] hover:bg-[#f4f6f1]"
-          >
-            <Upload className="h-4 w-4" />
-            Importar CSV
-          </button>
-          <button
-            type="button"
-            onClick={onAbrirCompra}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            Compra
-          </button>
-          <button
-            type="button"
-            onClick={onAbrirNacimiento}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f3d2e] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#16523e]"
+            onClick={() => setMostrarMenuAlta((v) => !v)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0f3d2e] px-4 py-3 text-xs font-extrabold text-white shadow-xs transition hover:bg-[#16523e]"
           >
             <Plus className="h-4 w-4 text-amber-300" />
-            Nacimiento
+            Alta Animal
+          </button>
+          <button
+            type="button"
+            onClick={() => onAbrirBajaAnimal()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-extrabold text-red-900 shadow-xs transition hover:bg-red-100"
+          >
+            <Minus className="h-4 w-4 text-red-700" />
+            Baja Animal
           </button>
         </div>
+
+        {mostrarMenuAlta && (
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMostrarMenuAlta(false);
+                onAbrirNacimiento();
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0f3d2e] px-3 py-2 text-xs font-bold text-white"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-300" />
+              Nacimiento
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMostrarMenuAlta(false);
+                onAbrirCompra();
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-950"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Compra / Entrada
+            </button>
+          </div>
+        )}
       </div>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv,.txt"
+        className="hidden"
+        onChange={(e) => {
+          handleImportarCsv(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
 
       {mensajeImport && (
         <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-950">
@@ -393,113 +427,6 @@ export function VistaCenso({
           </button>
         </div>
       )}
-
-      {/* Barra de Corrales / Lotes con desglose rápido Vacas · Toros · Terneros */}
-      <div className="card-surface space-y-2.5 rounded-2xl p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#31453b]">
-            <Layers className="h-4 w-4 text-emerald-700" />
-            <span>Corrales / Lotes y Fincas</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMostrarFormCorral((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1 text-[11px] font-bold text-[#0f3d2e] hover:bg-emerald-50"
-          >
-            <FolderPlus className="h-3.5 w-3.5" />
-            + Nuevo corral / finca
-          </button>
-        </div>
-
-        {mostrarFormCorral && (
-          <form onSubmit={handleCrearCorral} className="flex flex-wrap gap-2 pt-1">
-            <input
-              type="text"
-              value={nuevoCorralNombre}
-              onChange={(e) => setNuevoCorralNombre(e.target.value)}
-              placeholder="Ej: Nave Norte, Braña de Arriba, Novillas Cubiertas..."
-              required
-              className="flex-1 rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-3 py-1.5 text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-xl bg-[#0f3d2e] px-3.5 py-1.5 text-xs font-bold text-white"
-            >
-              Crear corral
-            </button>
-          </form>
-        )}
-
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setCorralFiltro('TODOS')}
-            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-              corralFiltro === 'TODOS'
-                ? 'bg-[#0f3d2e] text-white'
-                : 'border border-[#e1e7dc] bg-[#f8faf6] text-[#4a5d54] hover:bg-[#edf1e9]'
-            }`}
-          >
-            Todos los corrales
-          </button>
-          {corrales.map((c) => {
-            const enCorral = estado.animales.filter(
-              (a) => a.estado === 'ACTIVO' && a.corralId === c.id,
-            );
-            const nVacas = enCorral.filter((a) => {
-              const e = clasificarEtapaAnimal(a, hoy);
-              return e === 'VACA' || e === 'NOVILLA';
-            }).length;
-            const nTerneros = enCorral.filter(
-              (a) => clasificarEtapaAnimal(a, hoy) === 'TERNERO',
-            ).length;
-            const activo = corralFiltro === c.id;
-            return (
-              <div
-                key={c.id}
-                className={`inline-flex items-center rounded-xl border text-xs font-bold transition ${
-                  activo
-                    ? 'border-[#0f3d2e] bg-emerald-50 text-[#0f3d2e]'
-                    : 'border-[#e1e7dc] bg-white text-[#31453b] hover:bg-[#f8faf6]'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setCorralFiltro(activo ? 'TODOS' : c.id)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5"
-                >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: c.color }}
-                  />
-                  <span>{c.nombre}</span>
-                  <span className="rounded-full bg-[#edf1e9] px-1.5 font-mono text-[10px]">
-                    {enCorral.length}
-                  </span>
-                  {enCorral.length > 0 && (
-                    <span className="hidden font-mono text-[10px] font-medium text-[#64786e] sm:inline">
-                      ({nVacas}V·{nTerneros}T)
-                    </span>
-                  )}
-                </button>
-                {!c.esPredefinido && (
-                  <button
-                    type="button"
-                    aria-label={`Eliminar corral ${c.nombre}`}
-                    onClick={() => {
-                      if (corralFiltro === c.id) setCorralFiltro('TODOS');
-                      onEliminarCorral(c.id);
-                    }}
-                    className="pr-2 text-[#70857a] hover:text-red-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Barra contextual de Acciones Masivas */}
       {modoSeleccion && (
@@ -562,10 +489,10 @@ export function VistaCenso({
         </div>
       )}
 
-      {/* Buscador + Filtros de estado + Filtros multifaceta + Ordenación */}
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 sm:max-w-md">
+      {/* Buscador + Botón único de Filtros (unifica estado, corrales y atributos) */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#70857a]" />
             <input
               type="text"
@@ -576,105 +503,270 @@ export function VistaCenso({
             />
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                ['ACTIVOS', 'Activos', contadores.activos],
-                ['CROTAL_CAIDO', 'Crotal caído', contadores.crotalCaido],
-                ['SUPRESION', 'En supresión', contadores.supresion],
-                ['TODOS', 'Todos', contadores.todos],
-              ] as const
-            ).map(([id, label, count]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setFiltro(id)}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                  filtro === id
-                    ? 'bg-[#0f3d2e] text-white shadow-xs'
-                    : 'border border-[#dce4d6] bg-white text-[#4a5d54] hover:bg-[#edf1e9]'
-                }`}
-              >
-                <span>{label}</span>
-                <span
-                  className={`rounded-full px-1.5 font-mono text-[10px] ${
-                    filtro === id ? 'bg-white/20 text-white' : 'bg-[#edf1e9] text-[#2b4036]'
+          <button
+            type="button"
+            onClick={() => setMostrarFiltros((v) => !v)}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-extrabold transition ${
+              mostrarFiltros || filtrosActivos > 0
+                ? 'border-[#0f3d2e] bg-[#0f3d2e] text-white'
+                : 'border-[#dce4d6] bg-white text-[#1f3329] hover:bg-[#f4f6f1]'
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros
+            {filtrosActivos > 0 && (
+              <span className="rounded-full bg-amber-300 px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-amber-950">
+                {filtrosActivos}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Panel desplegable unificado de Filtros y Corrales */}
+        {mostrarFiltros && (
+          <div className="card-surface space-y-3 rounded-2xl p-4 text-xs">
+            {/* Estado */}
+            <div>
+              <p className="mb-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#52655c]">
+                Estado
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ['ACTIVOS', 'Activos', contadores.activos],
+                    ['CROTAL_CAIDO', 'Crotal caído', contadores.crotalCaido],
+                    ['SUPRESION', 'En supresión', contadores.supresion],
+                    ['TODOS', 'Todos', contadores.todos],
+                  ] as const
+                ).map(([id, label, count]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setFiltro(id)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-bold transition ${
+                      filtro === id
+                        ? 'bg-[#0f3d2e] text-white'
+                        : 'border border-[#dce4d6] bg-[#f8faf6] text-[#4a5d54] hover:bg-[#edf1e9]'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span
+                      className={`rounded-full px-1.5 font-mono text-[10px] ${
+                        filtro === id ? 'bg-white/20 text-white' : 'bg-[#edf1e9] text-[#2b4036]'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Corrales / Lotes */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#52655c]">
+                  <Layers className="h-3.5 w-3.5 text-emerald-700" />
+                  Corrales / Fincas
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMostrarFormCorral((v) => !v)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2 py-0.5 text-[11px] font-bold text-[#0f3d2e]"
+                >
+                  <FolderPlus className="h-3 w-3" />
+                  + Nuevo corral
+                </button>
+              </div>
+
+              {mostrarFormCorral && (
+                <form onSubmit={handleCrearCorral} className="mb-2 flex flex-wrap gap-2">
+                  <input
+                    type="text"
+                    value={nuevoCorralNombre}
+                    onChange={(e) => setNuevoCorralNombre(e.target.value)}
+                    placeholder="Ej: Nave Norte, Braña de Arriba..."
+                    required
+                    className="flex-1 rounded-xl border border-[#dce4d6] bg-[#f8faf6] px-3 py-1.5 text-xs focus:border-emerald-600 focus:bg-white focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-[#0f3d2e] px-3 py-1.5 text-xs font-bold text-white"
+                  >
+                    Crear
+                  </button>
+                </form>
+              )}
+
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCorralFiltro('TODOS')}
+                  className={`rounded-xl px-2.5 py-1 font-bold transition ${
+                    corralFiltro === 'TODOS'
+                      ? 'bg-[#0f3d2e] text-white'
+                      : 'border border-[#e1e7dc] bg-[#f8faf6] text-[#4a5d54]'
                   }`}
                 >
-                  {count}
-                </span>
-              </button>
-            ))}
+                  Todos
+                </button>
+                {corrales.map((c) => {
+                  const enCorral = estado.animales.filter(
+                    (a) => a.estado === 'ACTIVO' && a.corralId === c.id,
+                  ).length;
+                  const activo = corralFiltro === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      className={`inline-flex items-center rounded-xl border font-bold ${
+                        activo
+                          ? 'border-[#0f3d2e] bg-emerald-50 text-[#0f3d2e]'
+                          : 'border-[#e1e7dc] bg-white text-[#31453b]'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setCorralFiltro(activo ? 'TODOS' : c.id)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1"
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        <span>{c.nombre}</span>
+                        <span className="rounded-full bg-[#edf1e9] px-1.5 font-mono text-[10px]">
+                          {enCorral}
+                        </span>
+                      </button>
+                      {!c.esPredefinido && (
+                        <button
+                          type="button"
+                          aria-label={`Eliminar corral ${c.nombre}`}
+                          onClick={() => {
+                            if (corralFiltro === c.id) setCorralFiltro('TODOS');
+                            onEliminarCorral(c.id);
+                          }}
+                          className="pr-2 text-[#70857a] hover:text-red-600"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Etapa, Sexo, Raza y Orden */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <select
+                aria-label="Filtrar por etapa"
+                value={etapaFiltro}
+                onChange={(e) => setEtapaFiltro(e.target.value as 'TODAS' | EtapaAnimal)}
+                className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
+              >
+                <option value="TODAS">Etapa: Todas</option>
+                <option value="VACA">Vacas adultas</option>
+                <option value="NOVILLA">Novillas</option>
+                <option value="TORO">Toros</option>
+                <option value="TERNERO">Terneros (&lt;12m)</option>
+              </select>
+
+              <select
+                aria-label="Filtrar por sexo"
+                value={sexoFiltro}
+                onChange={(e) => setSexoFiltro(e.target.value as 'TODOS' | SexoAnimal)}
+                className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
+              >
+                <option value="TODOS">Sexo: Todos</option>
+                <option value="H">Hembras</option>
+                <option value="M">Machos</option>
+              </select>
+
+              <select
+                aria-label="Filtrar por raza"
+                value={razaFiltro}
+                onChange={(e) => setRazaFiltro(e.target.value)}
+                className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
+              >
+                <option value="TODAS">Raza: Todas</option>
+                {razasDisponibles.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+
+              <div className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5">
+                <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-[#52655c]" />
+                <select
+                  aria-label="Ordenar censo"
+                  value={orden}
+                  onChange={(e) => setOrden(e.target.value as OrdenCenso)}
+                  className="w-full bg-transparent font-bold text-[#1f3329] focus:outline-none"
+                >
+                  <option value="CROTAL">Orden: Crotal</option>
+                  <option value="NOMBRE">Orden: Nombre</option>
+                  <option value="EDAD">Orden: Mayor edad</option>
+                  {!esCarne && <option value="DEL">Orden: Mayor DEL</option>}
+                  <option value="ULTIMO_PARTO">Orden: Último parto</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#edf1e9] pt-2.5">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#31453b]">
+                <input
+                  type="checkbox"
+                  checked={agruparCrias}
+                  onChange={(e) => setAgruparCrias(e.target.checked)}
+                  className="accent-[#0f3d2e]"
+                />
+                <Baby className="h-3.5 w-3.5 text-amber-700" />
+                Agrupar crías bajo madre
+              </label>
+
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModoSeleccion((v) => !v);
+                    setSeleccionados([]);
+                    setMostrarFiltros(false);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2.5 py-1 font-bold text-[#1f3329]"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  {modoSeleccion ? 'Salir lote' : 'Acciones lote'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAbrirLibrosOficiales('EXPLOTACION')}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-950"
+                >
+                  <BookOpenCheck className="h-3.5 w-3.5" />
+                  Libros PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportarExcelCsv}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2.5 py-1 font-bold text-[#1f3329]"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-white px-2.5 py-1 font-bold text-[#1f3329]"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Importar
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Filtros multifaceta combinables + Ordenación + Agrupar crías */}
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#e1e7dc] bg-white px-3.5 py-2.5 text-xs">
-          <select
-            aria-label="Filtrar por etapa"
-            value={etapaFiltro}
-            onChange={(e) => setEtapaFiltro(e.target.value as 'TODAS' | EtapaAnimal)}
-            className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
-          >
-            <option value="TODAS">Etapa: Todas</option>
-            <option value="VACA">Vacas adultas</option>
-            <option value="NOVILLA">Novillas</option>
-            <option value="TORO">Toros</option>
-            <option value="TERNERO">Terneros (&lt;12m)</option>
-          </select>
-
-          <select
-            aria-label="Filtrar por sexo"
-            value={sexoFiltro}
-            onChange={(e) => setSexoFiltro(e.target.value as 'TODOS' | SexoAnimal)}
-            className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
-          >
-            <option value="TODOS">Sexo: Todos</option>
-            <option value="H">Hembras</option>
-            <option value="M">Machos</option>
-          </select>
-
-          <select
-            aria-label="Filtrar por raza"
-            value={razaFiltro}
-            onChange={(e) => setRazaFiltro(e.target.value)}
-            className="rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#1f3329]"
-          >
-            <option value="TODAS">Raza: Todas</option>
-            {razasDisponibles.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-
-          <div className="inline-flex items-center gap-1 rounded-lg border border-[#dce4d6] bg-[#f8faf6] px-2.5 py-1.5">
-            <ArrowUpDown className="h-3.5 w-3.5 text-[#52655c]" />
-            <select
-              aria-label="Ordenar censo"
-              value={orden}
-              onChange={(e) => setOrden(e.target.value as OrdenCenso)}
-              className="bg-transparent font-bold text-[#1f3329] focus:outline-none"
-            >
-              <option value="CROTAL">Orden: Crotal</option>
-              <option value="NOMBRE">Orden: Nombre</option>
-              <option value="EDAD">Orden: Mayor edad</option>
-              {!esCarne && <option value="DEL">Orden: Mayor DEL</option>}
-              <option value="ULTIMO_PARTO">Orden: Último parto</option>
-            </select>
-          </div>
-
-          <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#f8faf6] px-2.5 py-1.5 font-bold text-[#31453b]">
-            <input
-              type="checkbox"
-              checked={agruparCrias}
-              onChange={(e) => setAgruparCrias(e.target.checked)}
-              className="accent-[#0f3d2e]"
-            />
-            <Baby className="h-3.5 w-3.5 text-amber-700" />
-            Agrupar crías bajo madre
-          </label>
-        </div>
+        )}
       </div>
 
       {/* Tarjetas limpias con Crotal Amarillo Realista, Foto, DEL, Peso/GMD y Corral */}

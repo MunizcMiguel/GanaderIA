@@ -1469,7 +1469,7 @@ export default function App() {
             onAbrirCompra={() => setModalCompra(true)}
             onAbrirLibrosOficiales={(libro = 'EXPLOTACION') => setModalLibros(libro)}
             onAbrirTratamiento={(a) => setModalTratamiento(a)}
-            onAbrirBajaAnimal={(a) => setModalBajaAnimal(a)}
+            onAbrirBajaAnimal={(a) => setModalBajaAnimal(a ?? 'SIN_PRESELECCION')}
           />
         )}
 
