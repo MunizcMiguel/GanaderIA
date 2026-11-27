@@ -175,30 +175,30 @@ export function VistaSitran({
         )}
       </section>
 
-      {/* Comparativa compacta en una sola fila (siempre 3 columnas, sin scroll extra) */}
-      <section className="grid grid-cols-3 gap-2">
-        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
-          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+      {/* Comparativa compacta en una sola fila (3 cajones cuadrados) */}
+      <section className="grid grid-cols-3 gap-2.5">
+        <div className="card-surface flex aspect-square max-h-28 w-full flex-col items-center justify-center rounded-xl p-2 text-center">
+          <p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-[#52655c]">
             En GanaderIA
           </p>
-          <p className="mt-0.5 font-mono text-xl font-extrabold text-[#0f1f18]">
+          <p className="mt-1 font-mono text-2xl font-extrabold text-[#0f1f18]">
             {activasLocal.length}
           </p>
         </div>
-        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
-          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+        <div className="card-surface flex aspect-square max-h-28 w-full flex-col items-center justify-center rounded-xl p-2 text-center">
+          <p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-[#52655c]">
             En SITRAN
           </p>
-          <p className="mt-0.5 font-mono text-xl font-extrabold text-emerald-800">
+          <p className="mt-1 font-mono text-2xl font-extrabold text-emerald-800">
             {activasEnSitran.length}
           </p>
         </div>
-        <div className="card-surface rounded-xl px-3 py-2.5 text-center">
-          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#52655c]">
+        <div className="card-surface flex aspect-square max-h-28 w-full flex-col items-center justify-center rounded-xl p-2 text-center">
+          <p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-[#52655c]">
             Diferencias
           </p>
           <p
-            className={`mt-0.5 font-mono text-xl font-extrabold ${
+            className={`mt-1 font-mono text-2xl font-extrabold ${
               totalDiferencias > 0 ? 'text-amber-700' : 'text-emerald-700'
             }`}
           >
