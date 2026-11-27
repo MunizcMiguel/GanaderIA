@@ -3,12 +3,10 @@ import {
   Calendar,
   CalendarHeart,
   CheckCircle2,
-  GitCompare,
   LayoutDashboard,
   Settings,
   Sprout,
   Stethoscope,
-  Tag,
   Truck,
   X,
 } from 'lucide-react';
@@ -34,7 +32,7 @@ import { VistaAnaliticaVet } from './components/VistaAnaliticaVet';
 import { VistaCalendario } from './components/VistaCalendario';
 import { VistaCenso } from './components/VistaCenso';
 import { VistaCrotales } from './components/VistaCrotales';
-import { VistaGestionEconomiaDocs } from './components/VistaGestionEconomiaDocs';
+import { VistaGestionEconomiaDocs, type SubTabGestion } from './components/VistaGestionEconomiaDocs';
 import { VistaReproduccion } from './components/VistaReproduccion';
 import { VistaRobotCuadre } from './components/VistaRobotCuadre';
 import { VistaSalidasDocs } from './components/VistaSalidasDocs';
@@ -91,9 +89,7 @@ import type {
 type Pestana =
   | 'panel'
   | 'calendario'
-  | 'robot'
   | 'censo'
-  | 'crotales'
   | 'reproduccion'
   | 'salidas'
   | 'analitica'
@@ -129,6 +125,20 @@ export default function App() {
   };
 
   const [pestana, setPestana] = useState<Pestana>('panel');
+  const [gestionSubTab, setGestionSubTab] = useState<SubTabGestion>('ECONOMIA');
+  const navegarA = (destino: Pestana | 'robot' | 'crotales') => {
+    if (destino === 'robot') {
+      setGestionSubTab('ROBOT');
+      setPestana('gestion');
+      return;
+    }
+    if (destino === 'crotales') {
+      setGestionSubTab('CROTALES');
+      setPestana('gestion');
+      return;
+    }
+    setPestana(destino);
+  };
   const [toast, setToast] = useState<string | null>(null);
   const [drawerAnimalGlobalId, setDrawerAnimalGlobalId] = useState<string | null>(null);
 
@@ -1348,24 +1358,6 @@ export default function App() {
     },
     { id: 'calendario', label: 'Calendario', corto: 'Agenda', grupo: 'operacion', icono: Calendar },
     {
-      id: 'robot',
-      label: 'Sincronizar Robot/SITRAN',
-      corto: 'Robot/SITRAN',
-      grupo: 'operacion',
-      icono: GitCompare,
-      badge: numPendientes,
-      badgeColor: sitranBadgeColor,
-    },
-    {
-      id: 'crotales',
-      label: 'Crotales',
-      corto: 'Crotales',
-      grupo: 'gestion',
-      icono: Tag,
-      badge: crotalesDisponiblesNav,
-      badgeColor: crotalesDisponiblesNav > 0 ? 'green' : 'red',
-    },
-    {
       id: 'reproduccion',
       label: 'Reproducción',
       corto: 'Reprod.',
@@ -1530,7 +1522,7 @@ export default function App() {
           <DashboardSemaforo
             estado={estado}
             alertas={alertas}
-            onIrA={setPestana}
+            onIrA={navegarA}
             onAbrirNacimiento={() => setModalNacimiento(true)}
           />
         )}
@@ -1539,35 +1531,8 @@ export default function App() {
           <VistaCalendario
             estado={estado}
             onAbrirFichaAnimal={(a) => setDrawerAnimalGlobalId(a.id)}
-            onIrA={setPestana}
+            onIrA={navegarA}
           />
-        )}
-
-        {pestana === 'robot' && (
-          <div className="space-y-5">
-            <VistaRobotCuadre
-              estado={estado}
-              onIncorporarDiscrepancia={incorporarDiscrepanciaRobot}
-              onMarcarTramitado={marcarTramitado}
-              onMarcarCrotalColocado={marcarCrotalColocado}
-              onRegistrarImportacion={(archivo, fuente, registrosLeidos) =>
-                setEstado((prev) => ({
-                  ...prev,
-                  ultimaImportacionRobot: {
-                    fechaIso: new Date().toISOString(),
-                    archivo,
-                    fuente,
-                    registrosLeidos,
-                  },
-                }))
-              }
-            />
-            <VistaSitran
-              estado={estado}
-              onMarcarTramitado={marcarTramitado}
-              onMarcarTodosTramitados={marcarTodosTramitados}
-            />
-          </div>
         )}
 
         {pestana === 'censo' && (
@@ -1602,116 +1567,6 @@ export default function App() {
             onAbrirBajaAnimal={(a, tipo) => {
               setTipoBajaInicial(tipo);
               setModalBajaAnimal(a ?? 'SIN_PRESELECCION');
-            }}
-          />
-        )}
-
-        {pestana === 'crotales' && (
-          <VistaCrotales
-            estado={estado}
-            onAnadirLote={(lote: LoteCrotales) => {
-              setEstado((prev) => ({
-                ...prev,
-                lotesCrotales: [...prev.lotesCrotales, lote],
-                pedidoCrotalesActivo: undefined,
-              }));
-              mostrarToast('Remesa recibida añadida al cajón virtual.');
-            }}
-            onResolverDuplicado={(animalId) => {
-              cambiarEstadoCrotal(animalId, 'OK');
-              mostrarToast('Duplicado marcado como colocado.');
-            }}
-            onSolicitarCrotales={(datos) => {
-              const hoy = hoyIso();
-              setEstado((prev) => ({
-                ...prev,
-                pedidoCrotalesActivo: {
-                  id: `ped-${Date.now()}`,
-                  fechaPedido: hoy,
-                  fechaAvisoCalendario: sumarDiasIso(hoy, 7),
-                  cantidad: datos.cantidad,
-                  proveedor: datos.proveedor,
-                  formaEnvio: datos.formaEnvio,
-                },
-              }));
-              mostrarToast(
-                'Pedido registrado. Aviso en la Agenda en 1 semana para confirmar recepción.',
-              );
-            }}
-            onAplazarPedidoCrotales={() => {
-              setEstado((prev) =>
-                prev.pedidoCrotalesActivo
-                  ? {
-                      ...prev,
-                      pedidoCrotalesActivo: {
-                        ...prev.pedidoCrotalesActivo,
-                        fechaAvisoCalendario: sumarDiasIso(
-                          prev.pedidoCrotalesActivo.fechaAvisoCalendario,
-                          7,
-                        ),
-                      },
-                    }
-                  : prev,
-              );
-              mostrarToast('Aviso de recepción de crotales aplazado 1 semana.');
-            }}
-            onAnularPedidoCrotales={() => {
-              setEstado((prev) => ({
-                ...prev,
-                pedidoCrotalesActivo: undefined,
-              }));
-              mostrarToast('Pedido de crotales anulado y aviso eliminado de la Agenda.');
-            }}
-            onRegistrarPerdidaCrotal={(animalId, nuevoEstado) => {
-              cambiarEstadoCrotal(animalId, nuevoEstado);
-              mostrarToast('Pérdida de crotal registrada en pendientes de solicitud.');
-            }}
-            onCrearPedidoDuplicados={(datos) => {
-              const hoy = hoyIso();
-              setEstado((prev) => ({
-                ...prev,
-                pedidosDuplicados: [
-                  {
-                    id: `pdup-${Date.now()}`,
-                    fechaPedido: hoy,
-                    proveedor: datos.proveedor,
-                    formaEnvio: datos.formaEnvio,
-                    recibido: false,
-                    items: datos.items.map((it) => ({ ...it, colocado: false })),
-                  },
-                  ...(prev.pedidosDuplicados || []),
-                ],
-              }));
-              mostrarToast(`Pedido de ${datos.items.length} duplicado(s) registrado.`);
-            }}
-            onConfirmarRecepcionPedidoDuplicados={(pedidoId) => {
-              const hoy = hoyIso();
-              setEstado((prev) => ({
-                ...prev,
-                pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
-                  p.id === pedidoId ? { ...p, recibido: true, fechaRecepcion: hoy } : p,
-                ),
-              }));
-              mostrarToast('Recepción de duplicados confirmada. Ahora puedes marcarlos al colocarlos.');
-            }}
-            onMarcarDuplicadoColocado={(pedidoId, animalId) => {
-              setEstado((prev) => ({
-                ...prev,
-                pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
-                  p.id === pedidoId
-                    ? {
-                        ...p,
-                        items: p.items.map((it) =>
-                          it.animalId === animalId ? { ...it, colocado: true } : it,
-                        ),
-                      }
-                    : p,
-                ),
-                animales: prev.animales.map((a) =>
-                  a.id === animalId ? { ...a, estadoCrotal: 'OK' } : a,
-                ),
-              }));
-              mostrarToast('Duplicado marcado como colocado y crotal restaurado a OK.');
             }}
           />
         )}
@@ -1857,6 +1712,148 @@ export default function App() {
         {pestana === 'gestion' && (
           <VistaGestionEconomiaDocs
             estado={estado}
+            subTab={gestionSubTab}
+            onCambiarSubTab={setGestionSubTab}
+            numPendientesSitran={numPendientes}
+            sitranBadgeColor={sitranBadgeColor}
+            crotalesDisponibles={crotalesDisponiblesNav}
+            robotContent={
+              <div className="space-y-5">
+                <VistaRobotCuadre
+                  estado={estado}
+                  onIncorporarDiscrepancia={incorporarDiscrepanciaRobot}
+                  onMarcarTramitado={marcarTramitado}
+                  onMarcarCrotalColocado={marcarCrotalColocado}
+                  onRegistrarImportacion={(archivo, fuente, registrosLeidos) =>
+                    setEstado((prev) => ({
+                      ...prev,
+                      ultimaImportacionRobot: {
+                        fechaIso: new Date().toISOString(),
+                        archivo,
+                        fuente,
+                        registrosLeidos,
+                      },
+                    }))
+                  }
+                />
+                <VistaSitran
+                  estado={estado}
+                  onMarcarTramitado={marcarTramitado}
+                  onMarcarTodosTramitados={marcarTodosTramitados}
+                />
+              </div>
+            }
+            crotalesContent={
+              <VistaCrotales
+                estado={estado}
+                onAnadirLote={(lote: LoteCrotales) => {
+                  setEstado((prev) => ({
+                    ...prev,
+                    lotesCrotales: [...prev.lotesCrotales, lote],
+                    pedidoCrotalesActivo: undefined,
+                  }));
+                  mostrarToast('Remesa recibida añadida al cajón virtual.');
+                }}
+                onResolverDuplicado={(animalId) => {
+                  cambiarEstadoCrotal(animalId, 'OK');
+                  mostrarToast('Duplicado marcado como colocado.');
+                }}
+                onSolicitarCrotales={(datos) => {
+                  const hoy = hoyIso();
+                  setEstado((prev) => ({
+                    ...prev,
+                    pedidoCrotalesActivo: {
+                      id: `ped-${Date.now()}`,
+                      fechaPedido: hoy,
+                      fechaAvisoCalendario: sumarDiasIso(hoy, 7),
+                      cantidad: datos.cantidad,
+                      proveedor: datos.proveedor,
+                      formaEnvio: datos.formaEnvio,
+                    },
+                  }));
+                  mostrarToast(
+                    'Pedido registrado. Aviso en la Agenda en 1 semana para confirmar recepción.',
+                  );
+                }}
+                onAplazarPedidoCrotales={() => {
+                  setEstado((prev) =>
+                    prev.pedidoCrotalesActivo
+                      ? {
+                          ...prev,
+                          pedidoCrotalesActivo: {
+                            ...prev.pedidoCrotalesActivo,
+                            fechaAvisoCalendario: sumarDiasIso(
+                              prev.pedidoCrotalesActivo.fechaAvisoCalendario,
+                              7,
+                            ),
+                          },
+                        }
+                      : prev,
+                  );
+                  mostrarToast('Aviso de recepción de crotales aplazado 1 semana.');
+                }}
+                onAnularPedidoCrotales={() => {
+                  setEstado((prev) => ({
+                    ...prev,
+                    pedidoCrotalesActivo: undefined,
+                  }));
+                  mostrarToast('Pedido de crotales anulado y aviso eliminado de la Agenda.');
+                }}
+                onRegistrarPerdidaCrotal={(animalId, nuevoEstado) => {
+                  cambiarEstadoCrotal(animalId, nuevoEstado);
+                  mostrarToast('Pérdida de crotal registrada en pendientes de solicitud.');
+                }}
+                onCrearPedidoDuplicados={(datos) => {
+                  const hoy = hoyIso();
+                  setEstado((prev) => ({
+                    ...prev,
+                    pedidosDuplicados: [
+                      {
+                        id: `pdup-${Date.now()}`,
+                        fechaPedido: hoy,
+                        proveedor: datos.proveedor,
+                        formaEnvio: datos.formaEnvio,
+                        recibido: false,
+                        items: datos.items.map((it) => ({ ...it, colocado: false })),
+                      },
+                      ...(prev.pedidosDuplicados || []),
+                    ],
+                  }));
+                  mostrarToast(`Pedido de ${datos.items.length} duplicado(s) registrado.`);
+                }}
+                onConfirmarRecepcionPedidoDuplicados={(pedidoId) => {
+                  const hoy = hoyIso();
+                  setEstado((prev) => ({
+                    ...prev,
+                    pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
+                      p.id === pedidoId ? { ...p, recibido: true, fechaRecepcion: hoy } : p,
+                    ),
+                  }));
+                  mostrarToast(
+                    'Recepción de duplicados confirmada. Ahora puedes marcarlos al colocarlos.',
+                  );
+                }}
+                onMarcarDuplicadoColocado={(pedidoId, animalId) => {
+                  setEstado((prev) => ({
+                    ...prev,
+                    pedidosDuplicados: (prev.pedidosDuplicados || []).map((p) =>
+                      p.id === pedidoId
+                        ? {
+                            ...p,
+                            items: p.items.map((it) =>
+                              it.animalId === animalId ? { ...it, colocado: true } : it,
+                            ),
+                          }
+                        : p,
+                    ),
+                    animales: prev.animales.map((a) =>
+                      a.id === animalId ? { ...a, estadoCrotal: 'OK' } : a,
+                    ),
+                  }));
+                  mostrarToast('Duplicado marcado como colocado y crotal restaurado a OK.');
+                }}
+              />
+            }
             onAnadirMovimientoEconomico={anadirMovimientoEconomico}
             onAnadirDocumento={(doc: DocumentoExplotacion) => {
               setEstado((prev) => ({ ...prev, documentos: [doc, ...prev.documentos] }));

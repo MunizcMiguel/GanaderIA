@@ -5,12 +5,14 @@ import {
   FileScan,
   FileText,
   FolderCheck,
+  GitCompare,
   Pill,
   Plus,
   Search,
   ShieldCheck,
+  Tag,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { formatearFechaEs, hoyIso } from '../domain/fechas';
 import type {
   DocumentoExplotacion,
@@ -19,8 +21,17 @@ import type {
 } from '../domain/types';
 import { SubVistaEconomiaEvolucion } from './SubVistaSaneamientoEconomia';
 
+export type SubTabGestion = 'ECONOMIA' | 'DOCS' | 'ROBOT' | 'CROTALES';
+
 interface Props {
   estado: EstadoGanaderia;
+  subTab: SubTabGestion;
+  onCambiarSubTab: (tab: SubTabGestion) => void;
+  numPendientesSitran: number;
+  sitranBadgeColor: 'green' | 'orange' | 'red';
+  crotalesDisponibles: number;
+  robotContent: ReactNode;
+  crotalesContent: ReactNode;
   onAnadirMovimientoEconomico: (mov: MovimientoEconomico) => void;
   onAnadirDocumento: (doc: DocumentoExplotacion) => void;
   onAbrirEscanerOcr: () => void;
@@ -29,13 +40,19 @@ interface Props {
 
 export function VistaGestionEconomiaDocs({
   estado,
+  subTab,
+  onCambiarSubTab,
+  numPendientesSitran,
+  sitranBadgeColor,
+  crotalesDisponibles,
+  robotContent,
+  crotalesContent,
   onAnadirMovimientoEconomico,
   onAnadirDocumento,
   onAbrirEscanerOcr,
   onAbrirLibrosOficiales,
 }: Props) {
   const hoy = hoyIso();
-  const [subTab, setSubTab] = useState<'ECONOMIA' | 'DOCS'>('ECONOMIA');
   const [busquedaDoc, setBusquedaDoc] = useState('');
   const [catFiltro, setCatFiltro] = useState<'TODAS' | DocumentoExplotacion['categoria']>('TODAS');
   const [mostrarFormDoc, setMostrarFormDoc] = useState(false);
@@ -90,13 +107,13 @@ export function VistaGestionEconomiaDocs({
 
   return (
     <div className="animate-fade-up space-y-4">
-      {/* Cabecera compacta + 2 iconos circulares */}
+      {/* Cabecera compacta + 4 iconos circulares */}
       <section className="card-surface space-y-4 rounded-2xl p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-extrabold text-[#0f1f18]">Gestión</h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           {(
             [
               {
@@ -104,12 +121,33 @@ export function VistaGestionEconomiaDocs({
                 label: 'Economía',
                 Icon: Euro,
                 badge: estado.movimientosEconomicos?.length || 0,
+                badgeClass: 'bg-emerald-600',
               },
               {
                 id: 'DOCS' as const,
-                label: 'Documentos / Libros',
+                label: 'Docs / Libros',
                 Icon: FolderCheck,
                 badge: estado.documentos.length,
+                badgeClass: 'bg-emerald-600',
+              },
+              {
+                id: 'ROBOT' as const,
+                label: 'Robot / SITRAN',
+                Icon: GitCompare,
+                badge: numPendientesSitran,
+                badgeClass:
+                  sitranBadgeColor === 'red'
+                    ? 'bg-red-600'
+                    : sitranBadgeColor === 'orange'
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-600',
+              },
+              {
+                id: 'CROTALES' as const,
+                label: 'Crotales',
+                Icon: Tag,
+                badge: crotalesDisponibles,
+                badgeClass: crotalesDisponibles > 0 ? 'bg-emerald-600' : 'bg-red-600',
               },
             ] as const
           ).map((item) => {
@@ -119,7 +157,7 @@ export function VistaGestionEconomiaDocs({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setSubTab(item.id)}
+                onClick={() => onCambiarSubTab(item.id)}
                 className="group flex flex-col items-center gap-1.5 text-center"
               >
                 <div
@@ -130,12 +168,14 @@ export function VistaGestionEconomiaDocs({
                   }`}
                 >
                   <Icono className="h-6 w-6" />
-                  <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-600 px-1 font-mono text-[11px] font-extrabold text-white shadow-xs">
+                  <span
+                    className={`absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white px-1 font-mono text-[11px] font-extrabold text-white shadow-xs ${item.badgeClass}`}
+                  >
                     {item.badge}
                   </span>
                 </div>
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-[11px] font-bold leading-tight ${
                     activo ? 'text-[#0f3d2e]' : 'text-[#4a5d54]'
                   }`}
                 >
@@ -146,6 +186,9 @@ export function VistaGestionEconomiaDocs({
           })}
         </div>
       </section>
+
+      {subTab === 'ROBOT' && robotContent}
+      {subTab === 'CROTALES' && crotalesContent}
 
       {subTab === 'ECONOMIA' && (
         <SubVistaEconomiaEvolucion
