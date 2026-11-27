@@ -10,7 +10,7 @@ import type { EstadoGanaderia } from '../domain/types';
 export function crearDatosDemoAsturias(fechaRefIso: string = hoyIso()): EstadoGanaderia {
   return {
     explotacion: {
-      nombre: 'Ganadería Casa El Robledal',
+      nombre: 'Casa Soto',
       titular: 'María Fernández Menéndez',
       codigoRega: 'ES330110001234',
       municipio: 'Cangas del Narcea (Asturias)',

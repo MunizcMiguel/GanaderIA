@@ -10,7 +10,20 @@ export function cargarAlmacenExplotaciones(): AlmacenMultiExplotacion {
     if (rawMulti) {
       const parsed = JSON.parse(rawMulti) as AlmacenMultiExplotacion;
       if (parsed && Array.isArray(parsed.explotaciones) && parsed.explotaciones.length > 0) {
-        return parsed;
+        return {
+          ...parsed,
+          explotaciones: parsed.explotaciones.map((exp) =>
+            exp.estado?.explotacion?.nombre === 'Ganadería Casa El Robledal'
+              ? {
+                  ...exp,
+                  estado: {
+                    ...exp.estado,
+                    explotacion: { ...exp.estado.explotacion, nombre: 'Casa Soto' },
+                  },
+                }
+              : exp,
+          ),
+        };
       }
     }
   } catch {

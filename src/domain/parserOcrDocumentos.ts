@@ -318,7 +318,7 @@ export function generarTextoEjemploRecetaPresvet(fechaRefIso: string = hoyIso())
     'RECETA VETERINARIA OFICIAL — SISTEMA PRESVET (MAPA)',
     `Nº Receta: PRESVET-${y}-33-09514`,
     `Fecha prescripción: ${d}/${m}/${y}`,
-    'Explotación REGA: ES330110001234 — Ganadería Casa El Robledal',
+    'Explotación REGA: ES330110001234 — Casa Soto',
     'Animal identificado (crotal): ES030041204521 (Vaca #4521 Pinta)',
     'Medicamento: Synulox LC (Amoxicilina + Ácido Clavulánico intramamario)',
     'Posología: 3 jeringas cada 12 horas',
